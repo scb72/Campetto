@@ -223,6 +223,7 @@
       <div class="btn-row">
         <button class="btn" onclick="submitPrenotazione()">Prenota</button>
         <button class="btn ghost" id="btn-back" onclick="backToTipo()">← Indietro</button>
+        <button class="btn ghost" id="btn-annulla-dati" onclick="closeModal()" style="display:none">Annulla</button>
       </div>
     </div>
 
@@ -348,7 +349,7 @@ function renderTable() {
     for(let i=0;i<7;i++) {
       const d=addDays(currentWeekStart,i), ds=fmtDate(d);
       const dt=new Date(ds+"T"+String(h).padStart(2,"0")+":00:00");
-      const past=dt<=now, info=slotsData[ds]?.[h]??null, isBooked=!!info;
+      const past=dt<=now, info=slotsData[ds]?.[h]??slotsData[ds]?.[String(h)]??null, isBooked=!!info;
       const isMine=isBooked&&user&&(
         (user.isMember  && info.codiceSocio===user.codiceSocio)||
         (!user.isMember && info.codiceSocio==="GUEST_"+user.guestToken)
@@ -391,6 +392,7 @@ function openModal(date,hour,type) {
     if(user) {
       setupDati(user.isMember?"socio":"ospite");
       document.getElementById("btn-back").style.display="none";
+      document.getElementById("btn-annulla-dati").style.display="";
       showPanel("panel-dati");
     } else {
       document.getElementById("card-socio").classList.remove("selected");
@@ -407,6 +409,7 @@ function goToDati() {
   if(!pendingType){ showErr("err-tipo","Scegli se sei un Socio o un Ospite."); return; }
   setupDati(pendingType);
   document.getElementById("btn-back").style.display="";
+  document.getElementById("btn-annulla-dati").style.display="none";
   showPanel("panel-dati");
 }
 
