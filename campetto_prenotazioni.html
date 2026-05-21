@@ -460,6 +460,7 @@ function goToBookingWeek() {
 }
 
 
+async function doCancel() {
   setLoading("panel-cancel",true); clearErr("err-cancel");
   const res=await fakeApi({ action:"cancelBooking", bookingId:cancelBookingId, codiceSocio:user?.codiceSocio||"", guestToken:user?.guestToken||"" });
   if(!res.ok){ showErr("err-cancel",res.error); setLoading("panel-cancel",false); return; }
