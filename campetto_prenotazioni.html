@@ -131,6 +131,50 @@
   #toast.ok  { border-color:var(--green); color:var(--green); }
   #toast.err { border-color:var(--red);   color:#ff9b93; }
 
+  /* ── BANNER PRENOTAZIONE PERSONALE ──────────────────── */
+  #my-booking-banner {
+    background: rgba(46,204,113,.08);
+    border-bottom: 1px solid rgba(46,204,113,.25);
+    padding: 10px 24px;
+  }
+  .my-booking-content {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .my-booking-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    color: var(--text);
+  }
+  .my-booking-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    flex-shrink: 0;
+  }
+  .my-booking-btn {
+    background: var(--green);
+    color: #0d1117;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 18px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .my-booking-btn:hover { background: var(--green-d); }
+
   @keyframes fadeIn { from{opacity:0} to{opacity:1} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
   @media (max-width:600px) { header{padding:0 14px} #app{padding:16px 12px} .modal{padding:24px 18px} .type-cards{flex-direction:column} .demo-soci{margin-left:0} }
@@ -153,6 +197,17 @@
     </div>
   </div>
 </header>
+
+<!-- BANNER PRENOTAZIONE PERSONALE -->
+<div id="my-booking-banner" style="display:none">
+  <div class="my-booking-content">
+    <div class="my-booking-info">
+      <span class="my-booking-dot"></span>
+      <span id="my-booking-text">La tua prossima prenotazione</span>
+    </div>
+    <button class="my-booking-btn" onclick="goToMyBooking()">Vai →</button>
+  </div>
+</div>
 
 <!-- APP -->
 <div id="app">
@@ -286,6 +341,7 @@ let slotsData        = {};
 let pendingSlot      = null;
 let pendingType      = null;
 let cancelBookingId  = null;
+let myNextBooking    = null; // { date, hour, nome, id }
 
 // Sessione in sessionStorage (non persiste tra tab/refresh — adatto alla demo)
 (function initSession() {
@@ -302,7 +358,29 @@ function getGuestToken() {
   if(!t){ t="G"+Math.random().toString(36).substr(2,9).toUpperCase(); localStorage.setItem("campetto_gt",t); }
   return t;
 }
-function updateBadge() {
+function updateMyBookingBanner() {
+  const banner = document.getElementById("my-booking-banner");
+  const text   = document.getElementById("my-booking-text");
+  if (myNextBooking && user) {
+    const d = new Date(myNextBooking.date + "T00:00:00");
+    const label = DAYS_IT[(d.getDay()+6)%7] + " " + d.getDate() + " " +
+                  MONTHS_IT[d.getMonth()] + " — ore " +
+                  String(myNextBooking.hour).padStart(2,"0") + ":00";
+    text.textContent = "📌 La tua prossima prenotazione: " + label;
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
+}
+
+function goToMyBooking() {
+  if (!myNextBooking) return;
+  const d = new Date(myNextBooking.date + "T00:00:00");
+  currentWeekStart = getMondayOf(d);
+  loadWeek();
+}
+
+
   const badge=document.getElementById("user-badge"), label=document.getElementById("badge-label");
   if(!badge) return;
   badge.className="user-badge";
@@ -443,6 +521,8 @@ async function submitPrenotazione() {
   if(!res.ok){ showErr("err-dati",res.error); setLoading("panel-dati",false); return; }
   user={ nome, codiceSocio:type==="socio"?codice:null, isMember:type==="socio", guestToken:type==="ospite"?getGuestToken():null };
   saveSession();
+  myNextBooking = { date: pendingSlot.date, hour: parseInt(pendingSlot.hour), nome, id: res.bookingId };
+  updateMyBookingBanner();
   document.getElementById("ok-text").textContent=type==="socio"
     ?`Ciao ${nome}! Potrai fare una nuova prenotazione dopo aver utilizzato questo slot.`
     :`Ciao ${nome}! Ricorda che come ospite hai diritto a una sola prenotazione.`;
@@ -464,6 +544,8 @@ async function doCancel() {
   setLoading("panel-cancel",true); clearErr("err-cancel");
   const res=await fakeApi({ action:"cancelBooking", bookingId:cancelBookingId, codiceSocio:user?.codiceSocio||"", guestToken:user?.guestToken||"" });
   if(!res.ok){ showErr("err-cancel",res.error); setLoading("panel-cancel",false); return; }
+  myNextBooking = null;
+  updateMyBookingBanner();
   closeModal(); toast("🗑️ Prenotazione cancellata.","ok"); loadWeek();
 }
 
@@ -497,14 +579,13 @@ async function init() {
         guestToken:  user.guestToken  || ""
       });
       if (res.ok && res.found) {
+        myNextBooking = { date: res.date, hour: res.hour, nome: res.nome, id: res.id };
         const d = new Date(res.date + "T00:00:00");
         currentWeekStart = getMondayOf(d);
-        toast("📌 Prossima prenotazione: " + res.date.split("-").reverse().join("/") + " ore " + res.hour + ":00", "ok");
       }
-    } catch(e) {
-      // se fallisce, parte dalla settimana corrente
-    }
+    } catch(e) {}
   }
+  updateMyBookingBanner();
   await loadWeek();
 }
 
