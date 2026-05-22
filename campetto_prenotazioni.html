@@ -518,12 +518,37 @@ async function submitPrenotazione() {
   if(!nome){ showErr("err-dati","Inserisci il tuo nome."); return; }
   if(type==="socio"&&!codice){ showErr("err-dati","Inserisci il codice socio."); return; }
   setLoading("panel-dati",true); clearErr("err-dati");
+
+  // Prima salva la sessione così l'utente è loggato in ogni caso
+  const newUser={ nome, codiceSocio:type==="socio"?codice:null, isMember:type==="socio", guestToken:type==="ospite"?getGuestToken():null };
+
   const res=await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour, nome, codiceSocio:type==="socio"?codice:"", guestToken:type==="ospite"?getGuestToken():"" });
-  if(!res.ok){ showErr("err-dati",res.error); setLoading("panel-dati",false); return; }
-  user={ nome, codiceSocio:type==="socio"?codice:null, isMember:type==="socio", guestToken:type==="ospite"?getGuestToken():null };
+
+  if(!res.ok){
+    // Anche se la prenotazione fallisce, logga comunque l'utente
+    user = newUser;
+    saveSession();
+    // Se il blocco è per prenotazione futura, offri di andarci
+    if(res.error && res.error.includes("prenotazione futura")) {
+      // Cerca la prenotazione esistente
+      const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:newUser.codiceSocio||"", guestToken:newUser.guestToken||"" });
+      if(nb.ok && nb.found) {
+        myNextBooking = { date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
+        updateMyBookingBanner();
+      }
+      showErr("err-dati", res.error + " Usa il banner in alto per raggiungerla.");
+    } else {
+      showErr("err-dati",res.error);
+    }
+    setLoading("panel-dati",false);
+    return;
+  }
+
+  user = newUser;
   saveSession();
   myNextBooking = { date: pendingSlot.date, hour: parseInt(pendingSlot.hour), nome, id: res.bookingId };
   updateMyBookingBanner();
+
   document.getElementById("ok-text").textContent=type==="socio"
     ?`Ciao ${nome}! Potrai fare una nuova prenotazione dopo aver utilizzato questo slot.`
     :`Ciao ${nome}! Ricorda che come ospite hai diritto a una sola prenotazione.`;
@@ -583,10 +608,14 @@ async function init() {
         myNextBooking = { date: res.date, hour: res.hour, nome: res.nome, id: res.id };
         const d = new Date(res.date + "T00:00:00");
         currentWeekStart = getMondayOf(d);
+      } else {
+        myNextBooking = null;
       }
-    } catch(e) {}
+    } catch(e) {
+      myNextBooking = null;
+    }
+    updateMyBookingBanner();
   }
-  updateMyBookingBanner();
   await loadWeek();
 }
 
