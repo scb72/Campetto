@@ -49,7 +49,7 @@
   .legend-dot { width:12px; height:12px; border-radius:3px; }
   .ld-free   { background:var(--bg3); border:1px solid var(--border); }
   .ld-booked { background:rgba(231,76,60,.25); border:1px solid var(--red); }
-  .ld-mine   { background:rgba(46,204,113,.25); border:1px solid var(--green); }
+  .ld-mine   { background:rgba(52,152,219,.25); border:1px solid #3498db; }
   .ld-past   { background:var(--bg); border:1px dashed var(--border); opacity:.5; }
 
   .stats-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
@@ -68,9 +68,9 @@
   .slot { width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:4px 8px; transition:background .15s; cursor:default; }
   .slot.free { cursor:pointer; }
   .slot.free:hover { background:rgba(46,204,113,.1); }
-  .slot.booked { background:rgba(231,76,60,.12); flex-direction:column; gap:2px; }
-  .slot.mine   { background:rgba(46,204,113,.12); flex-direction:column; gap:2px; cursor:pointer; }
-  .slot.mine:hover { background:rgba(46,204,113,.2); }
+  .slot.booked { background:rgba(231,76,60,.15); flex-direction:column; gap:2px; }
+  .slot.mine   { background:rgba(52,152,219,.15); flex-direction:column; gap:2px; cursor:pointer; }
+  .slot.mine:hover { background:rgba(52,152,219,.28); }
   .slot.past { opacity:.35; pointer-events:none; }
   .slot-name  { font-size:0.75rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   .slot-label { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
@@ -133,8 +133,8 @@
 
   /* ── BANNER PRENOTAZIONE PERSONALE ──────────────────── */
   #my-booking-banner {
-    background: rgba(46,204,113,.08);
-    border-bottom: 1px solid rgba(46,204,113,.25);
+    background: rgba(52,152,219,.08);
+    border-bottom: 1px solid rgba(52,152,219,.25);
     padding: 10px 24px;
   }
   .my-booking-content {
@@ -155,13 +155,13 @@
   .my-booking-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green);
+    background: #3498db;
+    box-shadow: 0 0 6px #3498db;
     flex-shrink: 0;
   }
   .my-booking-btn {
-    background: var(--green);
-    color: #0d1117;
+    background: #3498db;
+    color: #fff;
     border: none;
     border-radius: 8px;
     padding: 7px 18px;
@@ -173,7 +173,7 @@
     transition: background .2s;
     flex-shrink: 0;
   }
-  .my-booking-btn:hover { background: var(--green-d); }
+  .my-booking-btn:hover { background: #2980b9; }
 
   @keyframes fadeIn { from{opacity:0} to{opacity:1} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -625,4 +625,3 @@ init();
 </script>
 </body>
 </html>
-
