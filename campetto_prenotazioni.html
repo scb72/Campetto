@@ -8,36 +8,48 @@
 
 const SHEET_NAME_BOOKINGS  = "Prenotazioni";
 const SHEET_NAME_MEMBERS   = "Soci";
-const SLOT_HOURS_START     = 8;
-const SLOT_HOURS_END       = 22;
+const SLOT_HOURS_START     = 8;   // prima ora prenotabile
+const SLOT_HOURS_END       = 22;  // ultima ora (22 = slot 22:00-23:00)
 
-function doGet(e)  { return handleRequest(e); }
-function doPost(e) { return handleRequest(e); }
+// ── Punto di ingresso GET (usato per JSONP / redirect) ───────
+function doGet(e) {
+  return handleRequest(e);
+}
+
+// ── Punto di ingresso POST ───────────────────────────────────
+function doPost(e) {
+  return handleRequest(e);
+}
 
 function handleRequest(e) {
   const params = e.parameter || {};
+  const action = params.action;
   let result;
+
   try {
-    switch (params.action) {
+    switch (action) {
       case "getSlots":      result = getSlots(params);      break;
       case "book":          result = book(params);           break;
       case "cancelBooking": result = cancelBooking(params);  break;
-      case "getMyNextBooking": result = getMyNextBooking(params); break;
       case "getMemberInfo": result = getMemberInfo(params);  break;
       default: result = { ok: false, error: "Azione sconosciuta" };
     }
   } catch (err) {
     result = { ok: false, error: err.message };
   }
-  return ContentService
+
+  const output = ContentService
     .createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+
+  return output;
 }
 
-// ── Inizializza fogli ────────────────────────────────────────
+// ── Inizializza il foglio se non esiste ──────────────────────
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  // Foglio Prenotazioni
   let bookSheet = ss.getSheetByName(SHEET_NAME_BOOKINGS);
   if (!bookSheet) {
     bookSheet = ss.insertSheet(SHEET_NAME_BOOKINGS);
@@ -45,60 +57,51 @@ function initSheets() {
     bookSheet.getRange(1, 1, 1, 6).setFontWeight("bold");
   }
 
+  // Foglio Soci
   let membSheet = ss.getSheetByName(SHEET_NAME_MEMBERS);
   if (!membSheet) {
     membSheet = ss.insertSheet(SHEET_NAME_MEMBERS);
     membSheet.appendRow(["CodiceSocio", "Nome", "Cognome", "Email", "Attivo"]);
     membSheet.getRange(1, 1, 1, 5).setFontWeight("bold");
-    membSheet.appendRow(["SOCIO001", "Mario",  "Rossi",   "mario@example.com",  true]);
-    membSheet.appendRow(["SOCIO002", "Luigi",  "Verdi",   "luigi@example.com",  true]);
-    membSheet.appendRow(["SOCIO003", "Anna",   "Bianchi", "anna@example.com",   true]);
+    // Aggiungi qualche socio di esempio
+    membSheet.appendRow(["SOCIO001", "Mario",   "Rossi",   "mario@example.com",   true]);
+    membSheet.appendRow(["SOCIO002", "Luigi",   "Verdi",   "luigi@example.com",   true]);
+    membSheet.appendRow(["SOCIO003", "Anna",    "Bianchi", "anna@example.com",    true]);
+    membSheet.appendRow(["ADMIN001", "Admin",   "Campo",   "admin@example.com",   true]);
   }
 }
 
-// ── Helper: converte qualsiasi valore data in stringa YYYY-MM-DD (ora locale) ──
-function toDateStr(val) {
-  if (val instanceof Date) {
-    // Usa ora locale dello spreadsheet, non UTC
-    const d = new Date(val.getTime() + (val.getTimezoneOffset() * 60000) * -1);
-    // Oppure più semplice: leggi direttamente i valori locali
-    const local = new Date(val.toLocaleString("en-US", { timeZone: Session.getScriptTimeZone() }));
-    return local.getFullYear() + "-" +
-      String(local.getMonth() + 1).padStart(2, "0") + "-" +
-      String(local.getDate()).padStart(2, "0");
-  }
-  return String(val).trim();
-}
-
-// ── getSlots ─────────────────────────────────────────────────
+// ── Recupera gli slot di una settimana ───────────────────────
+// params: weekStart (YYYY-MM-DD, lunedì della settimana)
 function getSlots(params) {
   initSheets();
-  const weekStart = params.weekStart;
+  const weekStart = params.weekStart; // es. "2025-06-02"
   if (!weekStart) return { ok: false, error: "weekStart mancante" };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bookSheet = ss.getSheetByName(SHEET_NAME_BOOKINGS);
   const data = bookSheet.getDataRange().getValues();
 
-  // Costruisci i 7 giorni della settimana
+  // Costruisci array dei 7 giorni della settimana
   const days = [];
   const start = new Date(weekStart + "T00:00:00");
   for (let d = 0; d < 7; d++) {
     const day = new Date(start);
     day.setDate(start.getDate() + d);
-    days.push(toDateStr(day));
+    days.push(formatDate(day));
   }
 
-  // Raccogli prenotazioni convertendo sempre la data in stringa
-  const booked = {};
+  // Raccogli prenotazioni per questa settimana
+  const booked = {}; // "YYYY-MM-DD_HH" → { nome, codiceSocio }
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
-    if (!row[0]) continue;
-    const rowDate = toDateStr(row[1]);
-    if (days.includes(rowDate)) {
-      const key = rowDate + "_" + String(parseInt(row[2])).padStart(2, "0");
-      booked[key] = { nome: row[3], codiceSocio: String(row[4]), id: row[0] };
-    }
+    const rowDate = row[1]; // es. "2025-06-02"
+   let rowDate;
+if (row[1] instanceof Date) {
+  rowDate = formatDate(row[1]);
+} else {
+  rowDate = String(row[1]).trim();
+}
   }
 
   // Costruisci griglia risposta
@@ -114,7 +117,8 @@ function getSlots(params) {
   return { ok: true, slots };
 }
 
-// ── book ─────────────────────────────────────────────────────
+// ── Prenota uno slot ─────────────────────────────────────────
+// params: date, hour, nome, codiceSocio (vuoto se non socio), guestToken
 function book(params) {
   initSheets();
   const { date, hour, nome, codiceSocio, guestToken } = params;
@@ -125,39 +129,52 @@ function book(params) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bookSheet = ss.getSheetByName(SHEET_NAME_BOOKINGS);
 
-  if (findBooking(bookSheet, date, hour)) {
-    return { ok: false, error: "Slot già occupato" };
-  }
+  // Verifica slot libero
+  const existing = findBooking(bookSheet, date, hour);
+  if (existing) return { ok: false, error: "Slot già occupato" };
 
   const isMember = codiceSocio && codiceSocio.trim() !== "";
 
   if (isMember) {
+    // Verifica che il codice socio esista
     if (!memberExists(ss, codiceSocio)) {
       return { ok: false, error: "Codice socio non valido" };
     }
-    const blockingSlot = findFutureUnconsumedSlot(bookSheet, codiceSocio, new Date());
+    // Regola: il socio può prenotare solo se non ha slot futuri non ancora consumati
+    const now = new Date();
+    const blockingSlot = findFutureUnconsumedSlot(bookSheet, codiceSocio, now);
     if (blockingSlot) {
-      return { ok: false, error: "Hai già una prenotazione futura (" + blockingSlot.date + " ore " + blockingSlot.hour + ":00). Potrai prenotare di nuovo dopo averla utilizzata." };
+      return {
+        ok: false,
+        error: "Hai già una prenotazione futura (" + blockingSlot.date + " ore " + blockingSlot.hour + ":00). Potrai prenotare di nuovo dopo averla utilizzata."
+      };
     }
   } else {
-    if (guestToken && findGuestBooking(bookSheet, guestToken)) {
-      return { ok: false, error: "I non soci possono effettuare solo una prenotazione." };
+    // Non socio: controlla se ha già prenotato (tramite guestToken)
+    if (guestToken) {
+      const guestPrev = findGuestBooking(bookSheet, guestToken);
+      if (guestPrev) {
+        return { ok: false, error: "I non soci possono effettuare solo una prenotazione." };
+      }
     }
   }
 
+  // Genera ID prenotazione
   const bookingId = "BK" + Date.now();
-  const lastRow = bookSheet.getLastRow() + 1;
-  bookSheet.getRange(lastRow, 1).setValue(bookingId);
-  bookSheet.getRange(lastRow, 2).setValue("'" + date);
-  bookSheet.getRange(lastRow, 3).setValue(parseInt(hour));
-  bookSheet.getRange(lastRow, 4).setValue(nome.trim());
-  bookSheet.getRange(lastRow, 5).setValue(codiceSocio || ("GUEST_" + (guestToken || "???")));
-  bookSheet.getRange(lastRow, 6).setValue(new Date().toISOString());
+
+  bookSheet.appendRow([
+    bookingId,
+    date,
+    parseInt(hour),
+    nome.trim(),
+    codiceSocio || ("GUEST_" + (guestToken || "???")),
+    new Date().toISOString()
+  ]);
 
   return { ok: true, bookingId };
 }
 
-// ── cancelBooking ────────────────────────────────────────────
+// ── Cancella una prenotazione (solo se futura e stessa identità) ──
 function cancelBooking(params) {
   initSheets();
   const { bookingId, codiceSocio, guestToken } = params;
@@ -169,12 +186,14 @@ function cancelBooking(params) {
 
   for (let r = 1; r < data.length; r++) {
     if (data[r][0] === bookingId) {
+      // Verifica ownership
       const rowSocio = String(data[r][4]);
       const isOwner = (codiceSocio && rowSocio === codiceSocio) ||
                       (guestToken && rowSocio === "GUEST_" + guestToken);
       if (!isOwner) return { ok: false, error: "Non autorizzato" };
 
-      const slotDate = new Date(toDateStr(data[r][1]) + "T" + String(parseInt(data[r][2])).padStart(2,"0") + ":00:00");
+      // Verifica che sia futura
+      const slotDate = new Date(data[r][1] + "T" + String(data[r][2]).padStart(2,"0") + ":00:00");
       if (slotDate <= new Date()) return { ok: false, error: "Non puoi cancellare uno slot passato" };
 
       bookSheet.deleteRow(r + 1);
@@ -184,32 +203,7 @@ function cancelBooking(params) {
   return { ok: false, error: "Prenotazione non trovata" };
 }
 
-// ── getMyNextBooking ─────────────────────────────────────────
-function getMyNextBooking(params) {
-  initSheets();
-  const { codiceSocio, guestToken } = params;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAME_BOOKINGS);
-  const data = sheet.getDataRange().getValues();
-  const now = new Date();
-
-  for (let r = 1; r < data.length; r++) {
-    const row = data[r];
-    if (!row[0]) continue;
-    const rowCodice = String(row[4]);
-    const match = (codiceSocio && rowCodice.toUpperCase() === codiceSocio.toUpperCase()) ||
-                  (guestToken  && rowCodice === "GUEST_" + guestToken);
-    if (!match) continue;
-    const rowDate = toDateStr(row[1]);
-    const slotDt  = new Date(rowDate + "T" + String(parseInt(row[2])).padStart(2,"0") + ":00:00");
-    if (slotDt > now) {
-      return { ok: true, found: true, date: rowDate, hour: row[2], nome: row[3], id: row[0] };
-    }
-  }
-  return { ok: true, found: false };
-}
-
-// ── getMemberInfo ────────────────────────────────────────────
+// ── Info socio ───────────────────────────────────────────────
 function getMemberInfo(params) {
   initSheets();
   const { codiceSocio } = params;
@@ -220,7 +214,7 @@ function getMemberInfo(params) {
   const data = membSheet.getDataRange().getValues();
 
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][0]).toUpperCase() === codiceSocio.toUpperCase() && data[r][4]) {
+    if (data[r][0] === codiceSocio && data[r][4]) {
       return { ok: true, nome: data[r][1], cognome: data[r][2], email: data[r][3] };
     }
   }
@@ -228,10 +222,16 @@ function getMemberInfo(params) {
 }
 
 // ── Helper ───────────────────────────────────────────────────
+function formatDate(d) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
 function findBooking(sheet, date, hour) {
   const data = sheet.getDataRange().getValues();
   for (let r = 1; r < data.length; r++) {
-    if (toDateStr(data[r][1]) === date && parseInt(data[r][2]) === parseInt(hour)) return data[r];
+    if (data[r][1] === date && parseInt(data[r][2]) === parseInt(hour)) return data[r];
   }
   return null;
 }
@@ -240,7 +240,7 @@ function memberExists(ss, codiceSocio) {
   const sheet = ss.getSheetByName(SHEET_NAME_MEMBERS);
   const data = sheet.getDataRange().getValues();
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][0]).toUpperCase() === codiceSocio.toUpperCase() && data[r][4]) return true;
+    if (data[r][0] === codiceSocio && data[r][4]) return true;
   }
   return false;
 }
@@ -248,10 +248,10 @@ function memberExists(ss, codiceSocio) {
 function findFutureUnconsumedSlot(sheet, codiceSocio, now) {
   const data = sheet.getDataRange().getValues();
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][4]).toUpperCase() === codiceSocio.toUpperCase()) {
-      const slotDate = new Date(toDateStr(data[r][1]) + "T" + String(parseInt(data[r][2])).padStart(2,"0") + ":00:00");
+    if (data[r][4] === codiceSocio) {
+      const slotDate = new Date(data[r][1] + "T" + String(data[r][2]).padStart(2,"0") + ":00:00");
       if (slotDate > now) {
-        return { date: toDateStr(data[r][1]), hour: data[r][2] };
+        return { date: data[r][1], hour: data[r][2] };
       }
     }
   }
