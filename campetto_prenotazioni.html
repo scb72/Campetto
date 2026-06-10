@@ -297,14 +297,11 @@
     <!-- PANEL: cancella -->
     <div id="panel-cancel" style="display:none">
       <h3>La tua prenotazione</h3>
-      <p class="sub">Vuoi andare alla settimana o cancellare la prenotazione?</p>
+      <p class="sub">Vuoi cancellare questa prenotazione?</p>
       <div id="chip-cancel" class="slot-chip"></div>
       <p class="err-box" id="err-cancel"></p>
       <div class="btn-row">
-        <button class="btn" onclick="goToBookingWeek()">📅 Vai alla settimana</button>
         <button class="btn danger" onclick="doCancel()">Cancella</button>
-      </div>
-      <div class="btn-row" style="margin-top:8px">
         <button class="btn ghost" onclick="closeModal()">Chiudi</button>
       </div>
     </div>
@@ -542,6 +539,9 @@ async function submitPrenotazione() {
     } else {
       showErr("err-dati",res.error);
     }
+    // Mostra sempre Annulla quando c'è un errore
+    document.getElementById("btn-back").style.display="none";
+    document.getElementById("btn-annulla-dati").style.display="";
     setLoading("panel-dati",false);
     return;
   }
@@ -625,3 +625,4 @@ init();
 </script>
 </body>
 </html>
+
