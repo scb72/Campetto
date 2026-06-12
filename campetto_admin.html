@@ -372,9 +372,13 @@ let reportSociData = [];
 //  API
 // ══════════════════════════════════════════════════════
 async function api(params) {
-  const url = new URL(APPS_SCRIPT_URL);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
-  const res = await fetch(url.toString(), { redirect:"follow" });
+  // Usa POST per evitare problemi con caratteri speciali nei parametri
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: Object.entries(params).map(([k,v]) => encodeURIComponent(k)+"="+encodeURIComponent(String(v))).join("&"),
+    redirect: "follow"
+  });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
@@ -911,8 +915,4 @@ function toast(msg,type=""){
   _tt=setTimeout(()=>{ el.style.transform="translateX(-50%) translateY(80px)"; el.style.opacity="0"; },3200);
 }
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModalDel(); });
-document.getElementById("input-codice").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("input-nome").focus(); });
-document.getElementById("input-nome").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
-</script>
-</body>
-</html>
+document.getElementById("input-codice").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElemen
