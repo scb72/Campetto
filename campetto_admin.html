@@ -164,6 +164,8 @@
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
     <button class="tab" onclick="switchTab('report-prenot')">📊 Report Ore</button>
     <button class="tab" onclick="switchTab('report-soci')">📋 Report Soci</button>
+    <button class="tab" onclick="switchTab('email')">📧 Invio Email</button>
+    <button class="tab" onclick="switchTab('qrcode')">📱 QR Code</button>
   </div>
 
   <!-- TAB SOCI -->
@@ -276,6 +278,61 @@
       <div id="summary-soci" style="margin-top:12px;font-size:.82rem;color:var(--muted)"></div>
     </div>
   </div>
+
+  <!-- TAB EMAIL -->
+  <div id="tab-email" class="panel">
+    <div class="card">
+      <h4>📧 Invia link app ai soci</h4>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Seleziona i soci a cui inviare il link. L'email verrà inviata dal tuo account Gmail con il testo:<br>
+        <em style="color:var(--text)">"Ciao [Nome], ecco il link per aprire l'app di prenotazione del Campo Polifunzionale di Bonzo: [LINK]"</em>
+      </p>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-blue" onclick="caricaSociEmail()">🔄 Carica soci</button>
+        <button class="btn btn-ghost" onclick="selezionaTutti(true)">☑ Seleziona tutti</button>
+        <button class="btn btn-ghost" onclick="selezionaTutti(false)">☐ Deseleziona tutti</button>
+      </div>
+      <p class="msg-box msg-err" id="err-email"></p>
+      <p class="msg-box msg-ok"  id="ok-email"></p>
+      <div class="tbl-wrap" style="margin-bottom:14px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" id="chk-all" onchange="selezionaTutti(this.checked)" style="cursor:pointer"></th>
+              <th>Codice</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Stato</th><th>Ultimo invio</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-email-soci"><tr class="empty-row"><td colspan="7">Clicca "Carica soci" per iniziare</td></tr></tbody>
+        </table>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <button class="btn btn-green" onclick="inviaEmail()" id="btn-invia-email" disabled>📧 Invia ai selezionati</button>
+        <span id="count-selezionati" style="font-size:.82rem;color:var(--muted)">0 soci selezionati</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB QR CODE -->
+  <div id="tab-qrcode" class="panel">
+    <div class="card" style="max-width:480px;margin:0 auto">
+      <h4>📱 QR Code — App Prenotazioni</h4>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        Stampa questo QR e appendilo al campo. Chiunque lo scansiona apre direttamente l'app di prenotazione.
+        Se già loggato entra diretto, altrimenti inserisce nome e codice socio.
+      </p>
+      <div style="background:#fff;border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
+        <div id="qr-container"></div>
+        <p style="font-size:.78rem;color:#333;text-align:center;word-break:break-all">
+          https://scb72.github.io/Campetto/campetto_prenotazioni.html
+        </p>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-blue" onclick="stampaQR()">🖨️ Stampa</button>
+        <button class="btn btn-ghost" onclick="scaricaQR()">⬇ Scarica PNG</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- MODAL CONFERMA CANCELLAZIONE -->
@@ -358,6 +415,7 @@ function switchTab(id) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
   event.target.classList.add("active");
   document.getElementById("tab-"+id).classList.add("active");
+  if (id === "qrcode") setTimeout(generaQR, 100);
 }
 
 // ══════════════════════════════════════════════════════
@@ -677,8 +735,149 @@ function scaricaCSV(tipo) {
 }
 
 // ══════════════════════════════════════════════════════
-//  HELPERS
+//  EMAIL
 // ══════════════════════════════════════════════════════
+let sociEmailData = [];
+
+async function caricaSociEmail() {
+  clearMsg("err-email"); clearMsg("ok-email");
+  document.getElementById("tbl-email-soci").innerHTML = `<tr class="empty-row"><td colspan="6"><span class="spinner"></span>Caricamento...</td></tr>`;
+  try {
+    const res = await api({ action:"getAllMembers", codiceSocio:adminUser.codiceSocio, filterStato:"attivi" });
+    if (!res.ok) { showMsg("err-email", res.error); return; }
+    sociEmailData = res.members.filter(m => m.email && m.email.trim() !== "");
+    renderSociEmail(sociEmailData);
+  } catch(e) {
+    showMsg("err-email","Errore di connessione.");
+  }
+}
+
+function renderSociEmail(members) {
+  if (!members || members.length === 0) {
+    document.getElementById("tbl-email-soci").innerHTML = `<tr class="empty-row"><td colspan="7">Nessun socio con email trovato</td></tr>`;
+    document.getElementById("btn-invia-email").disabled = true;
+    return;
+  }
+  let html = "";
+  members.forEach(m => {
+    const dataInvio = m.mailInviata
+      ? `<span class="badge badge-green">${fmtDateIT(m.mailInviata)}</span>`
+      : `<span style="color:var(--muted);font-size:.78rem">Mai</span>`;
+    html += `<tr>
+      <td style="text-align:center">
+        <input type="checkbox" class="chk-socio" data-codice="${m.codice}" onchange="aggiornaContatore()" style="cursor:pointer">
+      </td>
+      <td><code style="font-size:.8rem;color:var(--amber)">${m.codice}</code></td>
+      <td>${m.nome}</td><td>${m.cognome}</td>
+      <td style="color:var(--muted)">${m.email}</td>
+      <td><span class="badge badge-green">Attivo</span></td>
+      <td>${dataInvio}</td>
+    </tr>`;
+  });
+  document.getElementById("tbl-email-soci").innerHTML = html;
+  aggiornaContatore();
+}
+
+function selezionaTutti(checked) {
+  document.querySelectorAll(".chk-socio").forEach(c => c.checked = checked);
+  document.getElementById("chk-all").checked = checked;
+  aggiornaContatore();
+}
+
+function aggiornaContatore() {
+  const sel = document.querySelectorAll(".chk-socio:checked").length;
+  document.getElementById("count-selezionati").textContent = sel + " soc" + (sel===1?"io":"i") + " selezionat" + (sel===1?"o":"i");
+  document.getElementById("btn-invia-email").disabled = sel === 0;
+}
+
+async function inviaEmail() {
+  const selezionati = [];
+  document.querySelectorAll(".chk-socio:checked").forEach(c => {
+    const m = sociEmailData.find(s => s.codice === c.dataset.codice);
+    if (m) selezionati.push(m);
+  });
+  if (selezionati.length === 0) return;
+
+  clearMsg("err-email"); clearMsg("ok-email");
+  document.getElementById("btn-invia-email").disabled = true;
+  document.getElementById("btn-invia-email").textContent = "Invio in corso...";
+
+  try {
+    const destinatari = selezionati.map(m => ({ codice:m.codice, nome:m.nome, email:m.email }));
+    const res = await api({
+      action: "sendAppLink",
+      codiceSocio: adminUser.codiceSocio,
+      destinatari: JSON.stringify(destinatari)
+    });
+    if (!res.ok) { showMsg("err-email", res.error); }
+    else {
+      showMsg("ok-email", `✅ Email inviata a ${res.inviati} soc${res.inviati===1?"io":"i"}${res.errori>0?" ("+res.errori+" errori)":""}.`);
+      selezionaTutti(false);
+      caricaSociEmail(); // ricarica per aggiornare le date
+    }
+  } catch(e) {
+    showMsg("err-email","Errore di connessione.");
+  }
+  document.getElementById("btn-invia-email").disabled = false;
+  document.getElementById("btn-invia-email").textContent = "📧 Invia ai selezionati";
+}
+
+// ══════════════════════════════════════════════════════
+//  QR CODE
+// ══════════════════════════════════════════════════════
+const APP_URL = "https://scb72.github.io/Campetto/campetto_prenotazioni.html";
+
+function generaQR() {
+  const container = document.getElementById("qr-container");
+  if (!container) return;
+  container.innerHTML = "";
+  // Usa qrcodejs via CDN
+  const script = document.createElement("script");
+  script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+  script.onload = () => {
+    new QRCode(container, {
+      text: APP_URL,
+      width: 220,
+      height: 220,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  };
+  document.head.appendChild(script);
+}
+
+function stampaQR() {
+  const container = document.getElementById("qr-container");
+  const canvas = container.querySelector("canvas");
+  if (!canvas) { toast("QR non ancora generato.","err"); return; }
+  const win = window.open("","_blank");
+  win.document.write(`
+    <html><head><title>QR Code — Campo Polifunzionale Bonzo</title>
+    <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;gap:16px}
+    h2{font-size:1.2rem;margin:0}p{color:#666;font-size:.85rem}</style></head>
+    <body>
+    <h2>Campo Polifunzionale Bonzo</h2>
+    <img src="${canvas.toDataURL()}" style="width:280px;height:280px">
+    <p>Scansiona per prenotare</p>
+    <p style="font-size:.7rem;color:#999">${APP_URL}</p>
+    <script>window.onload=()=>window.print()<\/script>
+    </body></html>
+  `);
+  win.document.close();
+}
+
+function scaricaQR() {
+  const container = document.getElementById("qr-container");
+  const canvas = container.querySelector("canvas");
+  if (!canvas) { toast("QR non ancora generato.","err"); return; }
+  const a = document.createElement("a");
+  a.download = "qrcode_campetto_bonzo.png";
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+}
+
+
 function showMsg(id,msg){ const el=document.getElementById(id); el.textContent=msg; el.style.display="block"; }
 function clearMsg(id)   { const el=document.getElementById(id); el.textContent=""; el.style.display="none"; }
 let _tt;
