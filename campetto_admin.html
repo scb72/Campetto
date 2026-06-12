@@ -184,7 +184,10 @@
       </div>
       <p class="msg-box msg-err" id="err-nuovo-socio"></p>
       <p class="msg-box msg-ok"  id="ok-nuovo-socio"></p>
-      <button class="btn btn-green" onclick="inserisciSocio()">Salva Socio</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-green" onclick="inserisciSocio()">💾 Salva socio</button>
+        <button class="btn btn-blue"  onclick="inviaMailNuovoSocio()">📧 Invia mail</button>
+      </div>
     </div>
     <div class="card">
       <h4>👥 Elenco Soci</h4>
@@ -506,7 +509,7 @@ async function inserisciSocio() {
   try {
     const res = await api({ action:"addMember", codiceSocio:adminUser.codiceSocio, newCodice:codice, nome, cognome, email, telefono:tel, isAdmin });
     if (!res.ok) { showMsg("err-nuovo-socio", res.error); return; }
-    showMsg("ok-nuovo-socio", "Socio " + codice + " inserito correttamente!");
+    showMsg("ok-nuovo-socio", `✅ Socio ${codice} inserito correttamente!`);
     ["s-codice","s-nome","s-cognome","s-email","s-tel"].forEach(id => document.getElementById(id).value="");
     caricaSoci();
   } catch(e) {
@@ -514,6 +517,27 @@ async function inserisciSocio() {
   }
 }
 
+async function inviaMailNuovoSocio() {
+  const codice = document.getElementById("s-codice").value.trim().toUpperCase();
+  const nome   = document.getElementById("s-nome").value.trim();
+  const email  = document.getElementById("s-email").value.trim();
+
+  clearMsg("err-nuovo-socio"); clearMsg("ok-nuovo-socio");
+  if (!nome)  { showMsg("err-nuovo-socio","Inserisci il nome per poter inviare la mail."); return; }
+  if (!email) { showMsg("err-nuovo-socio","Inserisci l'email per poter inviare il link."); return; }
+
+  try {
+    const res = await api({
+      action: "sendAppLink",
+      codiceSocio: adminUser.codiceSocio,
+      destinatari: JSON.stringify([{ codice: codice||"—", nome, email }])
+    });
+    if (!res.ok) { showMsg("err-nuovo-socio", res.error); return; }
+    showMsg("ok-nuovo-socio", `✅ Email inviata a ${email}!`);
+  } catch(e) {
+    showMsg("err-nuovo-socio","Errore di connessione.");
+  }
+}
 async function toggleSocio(codice, attivo) {
   try {
     const res = await api({ action:"toggleMember", codiceSocio:adminUser.codiceSocio, targetCodice:codice, attivo });
