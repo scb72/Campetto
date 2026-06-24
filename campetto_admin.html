@@ -509,7 +509,10 @@ async function inserisciSocio(inviaMailSubito) {
 
   clearMsg("err-nuovo-socio"); clearMsg("ok-nuovo-socio");
   if (!codice || !nome || !cognome) { showMsg("err-nuovo-socio","Codice, nome e cognome sono obbligatori."); return; }
-  if (inviaMailSubito && !email)    { showMsg("err-nuovo-socio","Inserisci l'email per poter inviare il link."); return; }
+  if (inviaMailSubito && !email)    { showMsg("err-nuovo-socio","Inserisci l\'email per poter inviare il link."); return; }
+
+  // Disabilita i tasti per evitare doppio invio
+  document.querySelectorAll("#tab-soci .btn").forEach(b => b.disabled = true);
 
   try {
     const res = await api({ action:"addMember", codiceSocio:adminUser.codiceSocio, newCodice:codice, nome, cognome, email, telefono:tel, isAdmin });
@@ -533,6 +536,8 @@ async function inserisciSocio(inviaMailSubito) {
     caricaSoci();
   } catch(e) {
     showMsg("err-nuovo-socio","Errore di connessione.");
+  } finally {
+    document.querySelectorAll("#tab-soci .btn").forEach(b => b.disabled = false);
   }
 }
 
