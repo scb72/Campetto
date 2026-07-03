@@ -1,3 +1,4 @@
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 03/07/2026 21:25 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -261,12 +262,12 @@
       <p class="sub">Sei un Socio o un Non Socio?</p>
       <div id="chip-tipo" class="slot-chip"></div>
       <div class="type-cards">
-        <div class="type-card" id="card-socio" onclick="selectType('socio')">
+        <div class="type-card" id="card-socio" onclick="selectType('socio'); goToDati()">
           <div class="tc-icon">🏅</div>
           <div class="tc-label">Socio</div>
           <div class="tc-note">Prenotazioni illimitate (una alla volta)</div>
         </div>
-        <div class="type-card" id="card-ospite" onclick="selectType('ospite')">
+        <div class="type-card" id="card-ospite" onclick="selectType('ospite'); goToDati()">
           <div class="tc-icon">👤</div>
           <div class="tc-label">Non Socio</div>
           <div class="tc-note">Registrazione gratuita, una prenotazione alla volta</div>
@@ -274,7 +275,6 @@
       </div>
       <p class="err-box" id="err-tipo"></p>
       <div class="btn-row">
-        <button class="btn" onclick="goToDati()">Avanti →</button>
         <button class="btn ghost" onclick="closeModal()">Annulla</button>
       </div>
     </div>
@@ -615,10 +615,10 @@ async function registraOspite() {
   if(!cognome) { showErr("err-ospite-reg","Inserisci il tuo cognome."); return; }
   if(!email)   { showErr("err-ospite-reg","Inserisci la tua email."); return; }
 
-  setBtnsLoading("panel-ospite-reg",true);
+  setLoading("panel-ospite-reg",true);
   try {
     const res = await fakeApi({ action:"registerGuest", nome, cognome, email, telefono });
-    if(!res.ok){ showErr("err-ospite-reg",res.error); setBtnsLoading("panel-ospite-reg",false); return; }
+    if(!res.ok){ showErr("err-ospite-reg",res.error); setLoading("panel-ospite-reg",false); return; }
     localStorage.setItem("campetto_ospite_email", email);
     localStorage.setItem("campetto_ospite_nome", nome+" "+cognome);
     const msg = res.nuovo
@@ -630,7 +630,7 @@ async function registraOspite() {
   } catch(e) {
     showErr("err-ospite-reg","Errore di connessione. Riprova.");
   }
-  setBtnsLoading("panel-ospite-reg",false);
+  setLoading("panel-ospite-reg",false);
 }
 
 // ── Prenota come ospite con codice ───────────────────────────
@@ -641,18 +641,18 @@ async function submitOspite() {
   clearErr("err-ospite-codice");
   if(!codice && !email){ showErr("err-ospite-codice","Inserisci il codice non socio o la tua email."); return; }
 
-  setBtnsLoading("panel-ospite-codice",true);
+  setLoading("panel-ospite-codice",true);
   try {
     // Login ospite con codice o email
     const ver = await fakeApi({ action:"loginGuest", codiceOspite:codice, email });
-    if(!ver.ok){ showErr("err-ospite-codice",ver.error); setBtnsLoading("panel-ospite-codice",false); return; }
+    if(!ver.ok){ showErr("err-ospite-codice",ver.error); setLoading("panel-ospite-codice",false); return; }
 
     // Prenota
     const res = await fakeApi({
       action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
       nome: ver.nome+" "+ver.cognome, codiceSocio: ver.codice, sport
     });
-    if(!res.ok){ showErr("err-ospite-codice",res.error); setBtnsLoading("panel-ospite-codice",false); return; }
+    if(!res.ok){ showErr("err-ospite-codice",res.error); setLoading("panel-ospite-codice",false); return; }
 
     // Salva sessione ospite
     user={ nome:ver.nome+" "+ver.cognome, codiceSocio:ver.codice, isMember:false, guestToken:null };
@@ -666,7 +666,7 @@ async function submitOspite() {
   } catch(e) {
     showErr("err-ospite-codice","Errore di connessione. Riprova.");
   }
-  setBtnsLoading("panel-ospite-codice",false);
+  setLoading("panel-ospite-codice",false);
 }
 
 function backToTipo(){ if(!user) showPanel("panel-tipo"); else closeModal(); }
@@ -824,6 +824,4 @@ async function init() {
 }
 
 init();
-</script>
-</body>
-</html>
+</s
