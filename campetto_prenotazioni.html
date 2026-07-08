@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:14 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:22 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -736,6 +736,11 @@ async function doCancel() {
     } catch(e) { myNextBooking = null; }
   } else { myNextBooking = null; }
   updateMyBookingBanner();
+  // Ripristina i tasti originali del panel-dati
+  document.querySelector("#panel-dati .btn-row").innerHTML=
+    '<button class="btn" onclick="submitPrenotazione()">Prenota</button>'+
+    '<button class="btn ghost" id="btn-back" onclick="backToTipo()">← Indietro</button>'+
+    '<button class="btn ghost" id="btn-annulla-dati" onclick="closeModal()" style="display:none">Annulla</button>';
   closeModal(); toast("🗑️ Prenotazione cancellata.","ok"); loadWeek();
 }
 
