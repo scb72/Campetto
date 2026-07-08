@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:00 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:08 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -716,3 +716,69 @@ async function submitPrenotazione() {
   loadWeek();
 }
 function backToTipo(){ if(!user) showPanel("panel-tipo"); else closeModal(); }
+
+// ── Cancellazione ─────────────────────────────────────────
+async function doCancel() {
+  setLoading("panel-cancel",true); clearErr("err-cancel");
+  const res=await fakeApi({ action:"cancelBooking", bookingId:cancelBookingId, codiceSocio:user?.codiceSocio||"" });
+  if(!res.ok){ showErr("err-cancel",res.error); setLoading("panel-cancel",false); return; }
+  if(user?.codiceSocio) {
+    try {
+      const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:user.codiceSocio });
+      myNextBooking = (nb.ok && nb.found) ? { date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id } : null;
+    } catch(e) { myNextBooking = null; }
+  } else { myNextBooking = null; }
+  updateMyBookingBanner();
+  closeModal(); toast("🗑️ Prenotazione cancellata.","ok"); loadWeek();
+}
+
+// ── UI helpers ────────────────────────────────────────────
+function showPanel(id){
+  ["panel-tipo","panel-dati","panel-ospite-reg","panel-ospite-codice","panel-ok","panel-cancel"]
+  .forEach(p=>document.getElementById(p).style.display=p===id?"block":"none");
+}
+function showErr(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display="block";} }
+function clearErr(id)   { const el=document.getElementById(id); if(el){el.textContent="";el.style.display="none";} }
+function clearAllErr()  { ["err-tipo","err-dati","err-cancel","err-ospite-reg","err-ospite-codice"].forEach(clearErr); }
+function setLoading(pid,on){ document.querySelectorAll("#"+pid+" .btn").forEach(b=>b.disabled=on); }
+
+// ── Modal ────────────────────────────────────────────────
+function overlayClick(e){ if(e.target===document.getElementById("modal-overlay")) closeModal(); }
+function closeModal(){ document.getElementById("modal-overlay").style.display="none"; pendingSlot=cancelBookingId=null; }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+
+// ── Toast ─────────────────────────────────────────────────
+let _tt;
+function toast(msg,type=""){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.className="show "+type;
+  clearTimeout(_tt); _tt=setTimeout(()=>el.className="",3200);
+}
+
+// ── goToBookingWeek ───────────────────────────────────────
+function goToBookingWeek() {
+  if(!myNextBooking) return;
+  currentWeekStart=getMondayOf(new Date(myNextBooking.date+"T00:00:00"));
+  closeModal(); loadWeek();
+}
+
+// ── Start ─────────────────────────────────────────────────
+async function init() {
+  currentWeekStart = getMondayOf(new Date());
+  if(user) {
+    try {
+      const res = await fakeApi({ action:"getMyNextBooking", codiceSocio:user.codiceSocio||"" });
+      if(res.ok && res.found) {
+        myNextBooking={ date:res.date, hour:res.hour, nome:res.nome, id:res.id };
+        currentWeekStart=getMondayOf(new Date(res.date+"T00:00:00"));
+      } else { myNextBooking=null; }
+    } catch(e){ myNextBooking=null; }
+    updateMyBookingBanner();
+  }
+  await loadWeek();
+}
+
+init();
+</script>
+</body>
+</html>
