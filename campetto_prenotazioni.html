@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 04/07/2026 14:04 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 20:26 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -775,7 +775,15 @@ async function doCancel() {
   setLoading("panel-cancel",true); clearErr("err-cancel");
   const res=await fakeApi({ action:"cancelBooking", bookingId:cancelBookingId, codiceSocio:user?.codiceSocio||"" });
   if(!res.ok){ showErr("err-cancel",res.error); setLoading("panel-cancel",false); return; }
-  myNextBooking = null;
+  // Ricarica prenotazioni future per aggiornare banner
+  if(user?.codiceSocio) {
+    try {
+      const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:user.codiceSocio });
+      myNextBooking = (nb.ok && nb.found) ? { date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id } : null;
+    } catch(e) { myNextBooking = null; }
+  } else {
+    myNextBooking = null;
+  }
   updateMyBookingBanner();
   closeModal(); toast("🗑️ Prenotazione cancellata.","ok"); loadWeek();
 }
