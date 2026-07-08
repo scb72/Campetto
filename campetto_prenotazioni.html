@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:08 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:14 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -687,7 +687,7 @@ async function submitPrenotazione() {
   const res = await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour, nome, sport, codiceSocio:codice });
 
   if(!res.ok){
-    // Anche se la prenotazione fallisce salva la sessione
+    // Salva sessione comunque
     user={ nome, codiceSocio:codice, isMember:true, guestToken:null };
     saveSession();
     if(res.error && (res.error.includes("prenotazion") || res.error.includes("futur"))) {
@@ -696,10 +696,17 @@ async function submitPrenotazione() {
         myNextBooking = { date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
         updateMyBookingBanner();
       }
-      showErr("err-dati", res.error+" Usa il banner in alto per raggiungerla.");
+      showErr("err-dati", res.error);
+      // Sostituisce i tasti con Vai alle prenotazioni + Chiudi
+      document.getElementById("btn-back").style.display="none";
+      document.getElementById("btn-annulla-dati").style.display="none";
+      document.querySelector("#panel-dati .btn-row").innerHTML=
+        '<button class="btn" onclick="closeModal();goToMyBooking()">📅 Vai alle mie prenotazioni</button>'+
+        '<button class="btn ghost" onclick="closeModal()">Chiudi</button>';
     } else {
       showErr("err-dati", res.error);
     }
+    // Mostra sempre Annulla — nascondi Indietro
     document.getElementById("btn-back").style.display="none";
     document.getElementById("btn-annulla-dati").style.display="";
     setLoading("panel-dati",false);
