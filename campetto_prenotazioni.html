@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:30 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 18:45 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -482,7 +482,15 @@ function updateBadge() {
 }
 function handleBadgeClick() {
   if(!user) return;
-  if(confirm("Terminare la sessione come "+user.nome+"?")){ user=null; saveSession(); loadWeek(); toast("Sessione terminata."); }
+  if(confirm("Terminare la sessione come "+user.nome+"?")) {
+    user=null; saveSession();
+    myNextBooking=null; updateMyBookingBanner();
+    // Reset completo modal
+    showPanel("panel-tipo");
+    clearAllErr();
+    document.getElementById("modal-overlay").style.display="none";
+    loadWeek(); toast("Sessione terminata.");
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -556,6 +564,10 @@ function slotChip(date,hour){
 function openModal(date,hour,type) {
   pendingSlot={date,hour}; pendingType=null; cancelBookingId=null;
   clearAllErr();
+  // Reset sempre panel-dati e panel-blocco
+  document.getElementById("btn-back").style.display="";
+  document.getElementById("btn-annulla-dati").style.display="none";
+  document.getElementById("panel-blocco").style.display="none";
   if(type==="mine") {
     const slotInfo = slotsData[date]?.[hour] ?? slotsData[date]?.[String(hour)] ?? null;
     if(!slotInfo){ toast("Errore: slot non trovato.","err"); return; }
