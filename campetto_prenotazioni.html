@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 20:58 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 21:03 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -839,8 +839,6 @@ async function submitPrenotazione() {
   showPanel("panel-ok");
   loadWeek();
 }
-function backToTipo(){ if(!user) showPanel("panel-tipo"); else closeModal(); }
-
 // ── Login separato ────────────────────────────────────────
 function openLoginModal() {
   showLoginPanel("login-panel-tipo");
@@ -945,6 +943,8 @@ async function doCancel() {
 function showPanel(id){
   ["panel-tipo","panel-dati","panel-ospite-reg","panel-ospite-codice","panel-blocco","panel-ok","panel-cancel"]
   .forEach(p=>document.getElementById(p).style.display=p===id?"block":"none");
+  // Riabilita sempre i tasti quando si cambia panel
+  document.querySelectorAll("#modal-overlay .btn").forEach(b=>b.disabled=false);
 }
 function showErr(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display="block";} }
 function clearErr(id)   { const el=document.getElementById(id); if(el){el.textContent="";el.style.display="none";} }
