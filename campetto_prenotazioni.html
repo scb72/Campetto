@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:22 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 08/07/2026 21:30 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -363,6 +363,19 @@
       </div>
     </div>
 
+    <!-- PANEL: blocco prenotazioni (max raggiunto) -->
+    <div id="panel-blocco" style="display:none">
+      <div class="confirm-box">
+        <div class="big-icon">⚠️</div>
+        <h3>Prenotazioni al massimo</h3>
+        <p id="blocco-msg" style="color:var(--muted);font-size:.87rem;margin-top:8px;line-height:1.6"></p>
+      </div>
+      <div class="btn-row" style="margin-top:20px">
+        <button class="btn" onclick="closeModal();goToMyBooking()">📅 Vai alle mie prenotazioni</button>
+        <button class="btn ghost" onclick="closeModal()">Chiudi</button>
+      </div>
+    </div>
+
     <!-- PANEL: ok -->
     <div id="panel-ok" style="display:none">
       <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step active"></div></div>
@@ -696,13 +709,11 @@ async function submitPrenotazione() {
         myNextBooking = { date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
         updateMyBookingBanner();
       }
-      showErr("err-dati", res.error);
-      // Sostituisce i tasti con Vai alle prenotazioni + Chiudi
-      document.getElementById("btn-back").style.display="none";
-      document.getElementById("btn-annulla-dati").style.display="none";
-      document.querySelector("#panel-dati .btn-row").innerHTML=
-        '<button class="btn" onclick="closeModal();goToMyBooking()">📅 Vai alle mie prenotazioni</button>'+
-        '<button class="btn ghost" onclick="closeModal()">Chiudi</button>';
+      // Mostra pannello blocco invece di modificare i tasti
+      document.getElementById("panel-dati").style.display="none";
+      document.getElementById("panel-blocco").style.display="block";
+      document.getElementById("blocco-msg").textContent = res.error;
+      setLoading("panel-dati",false);
     } else {
       showErr("err-dati", res.error);
     }
@@ -736,17 +747,12 @@ async function doCancel() {
     } catch(e) { myNextBooking = null; }
   } else { myNextBooking = null; }
   updateMyBookingBanner();
-  // Ripristina i tasti originali del panel-dati
-  document.querySelector("#panel-dati .btn-row").innerHTML=
-    '<button class="btn" onclick="submitPrenotazione()">Prenota</button>'+
-    '<button class="btn ghost" id="btn-back" onclick="backToTipo()">← Indietro</button>'+
-    '<button class="btn ghost" id="btn-annulla-dati" onclick="closeModal()" style="display:none">Annulla</button>';
   closeModal(); toast("🗑️ Prenotazione cancellata.","ok"); loadWeek();
 }
 
 // ── UI helpers ────────────────────────────────────────────
 function showPanel(id){
-  ["panel-tipo","panel-dati","panel-ospite-reg","panel-ospite-codice","panel-ok","panel-cancel"]
+  ["panel-tipo","panel-dati","panel-ospite-reg","panel-ospite-codice","panel-blocco","panel-ok","panel-cancel"]
   .forEach(p=>document.getElementById(p).style.display=p===id?"block":"none");
 }
 function showErr(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display="block";} }
