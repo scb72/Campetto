@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 19:06 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 19:14 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -208,6 +208,7 @@
       <div class="dot"></div>
       <span id="badge-label">Visitatore</span>
     </div>
+    <button id="btn-login-header" class="nav-btn" onclick="openLoginModal()" style="border-color:var(--green);color:var(--green)">🔑 Accedi</button>
   </div>
 </header>
 
@@ -251,7 +252,59 @@
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL LOGIN -->
+<div class="overlay" id="login-overlay" style="display:none" onclick="if(event.target===this)closeLoginModal()">
+  <div class="modal">
+    <div id="login-panel-tipo">
+      <h3>Accedi</h3>
+      <p class="sub">Sei un Socio o un Non Socio?</p>
+      <div class="type-cards">
+        <div class="type-card" id="login-card-socio" onclick="loginSelectType('socio')">
+          <div class="tc-icon">🏅</div><div class="tc-label">Socio</div>
+        </div>
+        <div class="type-card" id="login-card-nonsocio" onclick="loginSelectType('nonsocio')">
+          <div class="tc-icon">👤</div><div class="tc-label">Non Socio</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn ghost" onclick="closeLoginModal()">Annulla</button>
+      </div>
+    </div>
+    <div id="login-panel-socio" style="display:none">
+      <h3>Accesso Socio</h3>
+      <p class="sub">Inserisci i tuoi dati per accedere.</p>
+      <div class="field"><label>Nome e Cognome</label><input type="text" id="login-nome" placeholder="Mario Rossi" autocomplete="name"></div>
+      <div class="field"><label>Codice Socio</label><input type="text" id="login-codice" placeholder="es. 001" style="text-transform:uppercase" autocomplete="off"></div>
+      <p class="err-box" id="login-err"></p>
+      <div class="btn-row">
+        <button class="btn" onclick="doLoginSocio()">Accedi</button>
+        <button class="btn ghost" onclick="showLoginPanel('login-panel-tipo')">← Indietro</button>
+      </div>
+    </div>
+    <div id="login-panel-nonsocio" style="display:none">
+      <h3>Accesso Non Socio</h3>
+      <p class="sub">Inserisci nome, cognome e codice non socio ricevuto via email.</p>
+      <div class="field"><label>Nome</label><input type="text" id="login-ns-nome" placeholder="Mario" autocomplete="given-name"></div>
+      <div class="field"><label>Cognome</label><input type="text" id="login-ns-cognome" placeholder="Rossi" autocomplete="family-name"></div>
+      <div class="field"><label>Codice Non Socio</label><input type="text" id="login-ns-codice" placeholder="es. OSP001" style="text-transform:uppercase" autocomplete="off"></div>
+      <p class="err-box" id="login-ns-err"></p>
+      <div class="btn-row">
+        <button class="btn" onclick="doLoginNonSocio()">Accedi</button>
+        <button class="btn ghost" onclick="showLoginPanel('login-panel-tipo')">← Indietro</button>
+      </div>
+    </div>
+    <div id="login-panel-ok" style="display:none">
+      <div class="confirm-box">
+        <div class="big-icon">✅</div>
+        <h3 id="login-ok-title">Accesso effettuato!</h3>
+        <p id="login-ok-text" style="color:var(--muted);font-size:.87rem;margin-top:8px"></p>
+      </div>
+      <div class="btn-row" style="margin-top:20px"><button class="btn" onclick="closeLoginModal()">Chiudi</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRENOTAZIONE -->
 <div class="overlay" id="modal-overlay" style="display:none" onclick="overlayClick(event)">
   <div class="modal">
 
@@ -474,20 +527,19 @@ function goToMyBooking() {
 
 function updateBadge() {
   const badge=document.getElementById("user-badge"), label=document.getElementById("badge-label");
+  const btnLogin=document.getElementById("btn-login-header");
   if(!badge) return;
   badge.className="user-badge";
-  if(user?.isMember)    { badge.classList.add("member"); label.textContent=user.nome+" · Socio"; }
-  else if(user)         { badge.classList.add("guest");  label.textContent=user.nome+" · Non Socio"; }
-  else                  { label.textContent="Visitatore"; }
+  if(user?.isMember)    { badge.classList.add("member"); label.textContent=user.nome+" · Socio"; if(btnLogin) btnLogin.style.display="none"; }
+  else if(user)         { badge.classList.add("guest");  label.textContent=user.nome+" · Non Socio"; if(btnLogin) btnLogin.style.display="none"; }
+  else                  { label.textContent="Visitatore"; if(btnLogin) btnLogin.style.display=""; }
 }
 function handleBadgeClick() {
-  if(!user) return;
+  if(!user) { openLoginModal(); return; }
   if(confirm("Terminare la sessione come "+user.nome+"?")) {
     user=null; saveSession();
-    myNextBooking=null; updateMyBookingBanner();
-    // Reset completo modal
-    showPanel("panel-tipo");
-    clearAllErr();
+    myNextBooking=null; updateMyBookingBanner(); updateBadge();
+    document.getElementById("btn-login-header").style.display="";
     document.getElementById("modal-overlay").style.display="none";
     loadWeek(); toast("Sessione terminata.");
   }
@@ -771,6 +823,89 @@ async function submitPrenotazione() {
   loadWeek();
 }
 function backToTipo(){ if(!user) showPanel("panel-tipo"); else closeModal(); }
+
+// ── Login separato ────────────────────────────────────────
+function openLoginModal() {
+  showLoginPanel("login-panel-tipo");
+  ["login-card-socio","login-card-nonsocio"].forEach(id=>document.getElementById(id).classList.remove("selected"));
+  ["login-err","login-ns-err"].forEach(clearErr);
+  document.getElementById("login-overlay").style.display="flex";
+}
+function closeLoginModal() {
+  document.getElementById("login-overlay").style.display="none";
+}
+function showLoginPanel(id) {
+  ["login-panel-tipo","login-panel-socio","login-panel-nonsocio","login-panel-ok"]
+    .forEach(p=>document.getElementById(p).style.display=p===id?"block":"none");
+}
+function loginSelectType(type) {
+  showLoginPanel(type==="socio" ? "login-panel-socio" : "login-panel-nonsocio");
+}
+
+async function doLoginSocio() {
+  const nome   = document.getElementById("login-nome").value.trim();
+  const codice = document.getElementById("login-codice").value.trim().toUpperCase();
+  clearErr("login-err");
+  if(!nome)   { showErr("login-err","Inserisci il tuo nome."); return; }
+  if(!codice) { showErr("login-err","Inserisci il codice socio."); return; }
+  setLoading("login-panel-socio",true);
+  try {
+    const res = await fakeApi({ action:"getMemberInfo", codiceSocio:codice });
+    if(!res.ok) { showErr("login-err","Codice socio non valido o non attivo."); setLoading("login-panel-socio",false); return; }
+    user={ nome, codiceSocio:codice, isMember:true, guestToken:null };
+    saveSession(); updateBadge();
+    document.getElementById("btn-login-header").style.display="none";
+    // Cerca prenotazioni future
+    const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:codice });
+    if(nb.ok && nb.found) {
+      myNextBooking={ date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
+      currentWeekStart=getMondayOf(new Date(nb.date+"T00:00:00"));
+    } else { myNextBooking=null; }
+    updateMyBookingBanner();
+    document.getElementById("login-ok-title").textContent="Bentornato, "+nome+"!";
+    document.getElementById("login-ok-text").textContent= myNextBooking
+      ? "Hai prenotazioni future attive. Usa il banner in alto per vederle."
+      : "Nessuna prenotazione futura. Clicca su uno slot libero per prenotare.";
+    showLoginPanel("login-panel-ok");
+    loadWeek();
+  } catch(e) {
+    showErr("login-err","Errore di connessione. Riprova.");
+    setLoading("login-panel-socio",false);
+  }
+}
+
+async function doLoginNonSocio() {
+  const nome    = document.getElementById("login-ns-nome").value.trim();
+  const cognome = document.getElementById("login-ns-cognome").value.trim();
+  const codice  = document.getElementById("login-ns-codice").value.trim().toUpperCase();
+  clearErr("login-ns-err");
+  if(!nome)    { showErr("login-ns-err","Inserisci il tuo nome."); return; }
+  if(!cognome) { showErr("login-ns-err","Inserisci il tuo cognome."); return; }
+  if(!codice)  { showErr("login-ns-err","Inserisci il codice non socio."); return; }
+  setLoading("login-panel-nonsocio",true);
+  try {
+    const res = await fakeApi({ action:"loginGuest", codiceOspite:codice, nome, cognome });
+    if(!res.ok) { showErr("login-ns-err",res.error); setLoading("login-panel-nonsocio",false); return; }
+    user={ nome:res.nome+" "+res.cognome, codiceSocio:res.codice, isMember:false, guestToken:null };
+    saveSession(); updateBadge();
+    document.getElementById("btn-login-header").style.display="none";
+    const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:res.codice });
+    if(nb.ok && nb.found) {
+      myNextBooking={ date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
+      currentWeekStart=getMondayOf(new Date(nb.date+"T00:00:00"));
+    } else { myNextBooking=null; }
+    updateMyBookingBanner();
+    document.getElementById("login-ok-title").textContent="Bentornato, "+res.nome+"!";
+    document.getElementById("login-ok-text").textContent= myNextBooking
+      ? "Hai una prenotazione futura attiva. Usa il banner in alto per vederla."
+      : "Nessuna prenotazione futura. Clicca su uno slot libero per prenotare.";
+    showLoginPanel("login-panel-ok");
+    loadWeek();
+  } catch(e) {
+    showErr("login-ns-err","Errore di connessione. Riprova.");
+    setLoading("login-panel-nonsocio",false);
+  }
+}
 
 // ── Cancellazione ─────────────────────────────────────────
 async function doCancel() {
