@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 19:21 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 20:58 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -546,6 +546,9 @@ function handleBadgeClick() {
     // Reset panel prenotazione
     showPanel("panel-tipo");
     clearAllErr();
+    // Riabilita tutti i tasti
+    document.querySelectorAll(".modal .btn").forEach(b=>b.disabled=false);
+    document.querySelectorAll("#login-overlay .btn").forEach(b=>b.disabled=false);
     ["card-socio","card-ospite"].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.classList.remove("selected");
@@ -625,6 +628,8 @@ function slotChip(date,hour){
 
 function openModal(date,hour,type) {
   pendingSlot={date,hour}; pendingType=null; cancelBookingId=null;
+  // Riabilita tutti i tasti
+  document.querySelectorAll("#modal-overlay .btn").forEach(b=>b.disabled=false);
   clearAllErr();
   // Reset completo pannelli
   showPanel("panel-tipo");
@@ -841,6 +846,8 @@ function openLoginModal() {
   showLoginPanel("login-panel-tipo");
   ["login-card-socio","login-card-nonsocio"].forEach(id=>document.getElementById(id).classList.remove("selected"));
   ["login-err","login-ns-err"].forEach(clearErr);
+  // Riabilita tutti i tasti
+  document.querySelectorAll("#login-overlay .btn").forEach(b=>b.disabled=false);
   document.getElementById("login-overlay").style.display="flex";
 }
 function closeLoginModal() {
