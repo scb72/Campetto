@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 18:45 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 19:06 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -578,7 +578,32 @@ function openModal(date,hour,type) {
     ["chip-tipo","chip-dati"].forEach(id=>document.getElementById(id).innerHTML=slotChip(date,hour));
     if(user) {
       if(user.isMember) {
-        // Socio con sessione → vai a dati socio
+        // Controlla se ha già il massimo di prenotazioni
+        if(myNextBooking) {
+          // Ha almeno una prenotazione futura — verifica il limite
+          document.getElementById("chip-dati").innerHTML=slotChip(date,hour);
+          setupDati("socio");
+          // Conta prenotazioni future visibili nella griglia
+          let futureCount = 0;
+          const now = new Date();
+          Object.entries(slotsData).forEach(([ds, hours]) => {
+            Object.entries(hours).forEach(([h, info]) => {
+              if(info && info.codiceSocio === user.codiceSocio) {
+                const dt = new Date(ds+"T"+String(h).padStart(2,"0")+":00:00");
+                if(dt > now) futureCount++;
+              }
+            });
+          });
+          if(futureCount >= 2) {
+            document.getElementById("blocco-msg").textContent =
+              "Hai già "+futureCount+" prenotazioni future attive. I soci possono averne al massimo 2. Cancella una prenotazione esistente per poterne fare una nuova.";
+            document.getElementById("panel-dati").style.display="none";
+            document.getElementById("panel-blocco").style.display="block";
+            document.getElementById("modal-overlay").style.display="flex";
+            return;
+          }
+        }
+        // Socio con sessione e slot disponibile → vai a dati
         setupDati("socio");
         document.getElementById("btn-back").style.display="none";
         document.getElementById("btn-annulla-dati").style.display="";
