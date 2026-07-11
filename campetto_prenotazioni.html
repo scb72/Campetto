@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 17:06 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 18:30 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -225,6 +225,7 @@
 
 <!-- APP -->
 <div id="app">
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;text-align:right">v 11/07/2026 18:30</div>
   <div class="week-nav">
     <h2 id="week-label">Settimana</h2>
     <div class="week-nav-btns">
@@ -626,7 +627,7 @@ function slotChip(date,hour){
   return `📅 <strong>${DAYS_IT[(d.getDay()+6)%7]} ${d.getDate()} ${MONTHS_IT[d.getMonth()]} ${d.getFullYear()}</strong> &nbsp;·&nbsp; ore ${String(hour).padStart(2,"0")}:00 – ${String(hour+1).padStart(2,"0")}:00`;
 }
 
-function openModal(date,hour,type) {
+async function openModal(date,hour,type) {
   pendingSlot={date,hour}; pendingType=null; cancelBookingId=null;
   // Riabilita tutti i tasti
   document.querySelectorAll("#modal-overlay .btn").forEach(b=>b.disabled=false);
@@ -674,11 +675,10 @@ function openModal(date,hour,type) {
         document.getElementById("btn-annulla-dati").style.display="";
         showPanel("panel-dati");
       } else {
-        // Ospite con sessione → vai a inserimento codice
-        document.getElementById("chip-ospite-codice").innerHTML=slotChip(date,hour);
-        document.getElementById("sub-ospite-codice").textContent="Inserisci il tuo codice non socio per completare la prenotazione.";
-        document.getElementById("ospite-codice").value=user.codiceSocio||"";
-        showPanel("panel-ospite-codice");
+        // Non socio con sessione → prenota direttamente senza modal
+        closeModal();
+        await submitOspiteLoggato();
+        return;
       }
     } else {
       document.getElementById("card-socio").classList.remove("selected");
@@ -691,20 +691,18 @@ function openModal(date,hour,type) {
 
 function selectType(t){ pendingType=t; document.getElementById("card-socio").classList.toggle("selected",t==="socio"); document.getElementById("card-ospite").classList.toggle("selected",t==="ospite"); }
 
-function goToDati() {
+async function goToDati() {
   if(!pendingType){ showErr("err-tipo","Scegli se sei un Socio o un Ospite."); return; }
   if(pendingType==="ospite") {
-    // Ospite → panel registrazione
+    // Se non socio già in sessione → prenota direttamente
+    if(user && !user.isMember) {
+      await submitOspiteLoggato();
+      return;
+    }
+    // Altrimenti → panel registrazione/accesso
     document.getElementById("chip-ospite-reg").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
     document.getElementById("chip-ospite-codice").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
-    // Se ospite già in sessione, vai diretto al codice
-    if(user && !user.isMember) {
-      document.getElementById("sub-ospite-codice").textContent="Inserisci il tuo codice non socio per completare la prenotazione.";
-      document.getElementById("ospite-codice").value = user.codiceSocio||"";
-      showPanel("panel-ospite-codice");
-    } else {
-      showPanel("panel-ospite-reg");
-    }
+    showPanel("panel-ospite-reg");
   } else {
     // Socio → panel dati
     setupDati("socio");
@@ -723,6 +721,20 @@ function setupDati(type) {
 }
 
 // ── Registrazione ospite ──────────────────────────────────────
+// ── Non socio già loggato prenota direttamente ───────────────
+async function submitOspiteLoggato() {
+  const sport = document.getElementById("ospite-sport")?.value?.trim() || "";
+  try {
+    const res = await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
+      nome:user.nome, codiceSocio:user.codiceSocio, sport });
+    if(!res.ok){ toast(res.error,"err"); return; }
+    myNextBooking={ date:pendingSlot.date, hour:parseInt(pendingSlot.hour), nome:user.nome, id:res.bookingId };
+    updateMyBookingBanner();
+    toast("✅ Prenotazione confermata!","ok");
+    loadWeek();
+  } catch(e) { toast("Errore di connessione. Riprova.","err"); }
+}
+
 // ── Non Socio: unico punto di ingresso ───────────────────
 async function submitNonSocio() {
   const nome     = document.getElementById("ospite-nome").value.trim();
