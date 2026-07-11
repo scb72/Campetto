@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 18:30 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 18:39 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -225,7 +225,7 @@
 
 <!-- APP -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;text-align:right">v 11/07/2026 18:30</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;text-align:right">v 11/07/2026 18:39</div>
   <div class="week-nav">
     <h2 id="week-label">Settimana</h2>
     <div class="week-nav-btns">
@@ -676,8 +676,9 @@ async function openModal(date,hour,type) {
         showPanel("panel-dati");
       } else {
         // Non socio con sessione → prenota direttamente senza modal
+        const slotDaPrenotare = { date, hour }; // salva prima di closeModal
         closeModal();
-        await submitOspiteLoggato();
+        await submitOspiteLoggato(slotDaPrenotare);
         return;
       }
     } else {
@@ -696,7 +697,7 @@ async function goToDati() {
   if(pendingType==="ospite") {
     // Se non socio già in sessione → prenota direttamente
     if(user && !user.isMember) {
-      await submitOspiteLoggato();
+      await submitOspiteLoggato(pendingSlot);
       return;
     }
     // Altrimenti → panel registrazione/accesso
@@ -722,17 +723,26 @@ function setupDati(type) {
 
 // ── Registrazione ospite ──────────────────────────────────────
 // ── Non socio già loggato prenota direttamente ───────────────
-async function submitOspiteLoggato() {
-  const sport = document.getElementById("ospite-sport")?.value?.trim() || "";
+async function submitOspiteLoggato(slot) {
+  if(!slot){ toast("Errore: slot non definito.","err"); return; }
   try {
-    const res = await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
-      nome:user.nome, codiceSocio:user.codiceSocio, sport });
+    const res = await fakeApi({
+      action: "book",
+      date:   slot.date,
+      hour:   slot.hour,
+      nome:   user.nome,
+      codiceSocio: user.codiceSocio,
+      sport:  ""
+    });
     if(!res.ok){ toast(res.error,"err"); return; }
-    myNextBooking={ date:pendingSlot.date, hour:parseInt(pendingSlot.hour), nome:user.nome, id:res.bookingId };
+    myNextBooking={ date:slot.date, hour:parseInt(slot.hour), nome:user.nome, id:res.bookingId };
     updateMyBookingBanner();
     toast("✅ Prenotazione confermata!","ok");
     loadWeek();
-  } catch(e) { toast("Errore di connessione. Riprova.","err"); }
+  } catch(e) {
+    console.error("submitOspiteLoggato error:", e);
+    toast("Errore di connessione. Riprova.","err");
+  }
 }
 
 // ── Non Socio: unico punto di ingresso ───────────────────
