@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 15:19 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 15:34 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -359,56 +359,36 @@
     </div>
 
     <!-- PANEL: registrazione ospite (step 1 — dati) -->
+    <!-- PANEL: non socio unico form -->
     <div id="panel-ospite-reg" style="display:none">
       <div class="steps"><div class="step done"></div><div class="step active"></div><div class="step"></div></div>
-      <h3>Registrazione Non Socio</h3>
-      <p class="sub">Inserisci i tuoi dati. Riceverai un codice via email per prenotare.</p>
+      <h3>Non Socio</h3>
+      <p class="sub"><strong>Prima volta?</strong> Inserisci nome, cognome ed email — riceverai il codice via email.<br><strong>Già registrato?</strong> Inserisci nome, cognome e codice non socio.</p>
       <div id="chip-ospite-reg" class="slot-chip"></div>
-      <div class="field">
-        <label>Nome</label>
-        <input type="text" id="ospite-nome" placeholder="Mario" autocomplete="given-name">
-      </div>
-      <div class="field">
-        <label>Cognome</label>
-        <input type="text" id="ospite-cognome" placeholder="Rossi" autocomplete="family-name">
-      </div>
-      <div class="field">
-        <label>Email</label>
-        <input type="email" id="ospite-email" placeholder="mario@email.com" autocomplete="email">
-      </div>
-      <div class="field">
-        <label>Telefono</label>
-        <input type="tel" id="ospite-telefono" placeholder="+39 333 1234567" autocomplete="tel">
-      </div>
+      <div class="field"><label>Nome *</label><input type="text" id="ospite-nome" placeholder="Mario" autocomplete="given-name"></div>
+      <div class="field"><label>Cognome *</label><input type="text" id="ospite-cognome" placeholder="Rossi" autocomplete="family-name"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Prima registrazione — compila email e telefono:</p>
+      <div class="field"><label>Email *</label><input type="email" id="ospite-email" placeholder="mario@email.com" autocomplete="email"></div>
+      <div class="field"><label>Telefono *</label><input type="tel" id="ospite-telefono" placeholder="+39 333 1234567" autocomplete="tel"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Già registrato — inserisci il codice:</p>
+      <div class="field"><label>Codice Non Socio</label><input type="text" id="ospite-codice-reg" placeholder="es. OSP001" style="text-transform:uppercase;letter-spacing:.05em" autocomplete="off"></div>
+      <div class="field"><label>Note <span style="color:var(--muted);font-size:.75rem">(opzionale)</span></label><input type="text" id="ospite-sport" placeholder="es. Tennis, Pallavolo..." maxlength="40" autocomplete="off"></div>
       <p class="err-box" id="err-ospite-reg"></p>
       <div class="btn-row">
-        <button class="btn" onclick="registraOspite()">Invia per ricevere codice →</button>
+        <button class="btn" onclick="submitNonSocio()">Avanti →</button>
         <button class="btn ghost" onclick="backToTipo()">← Indietro</button>
       </div>
     </div>
 
-    <!-- PANEL: inserimento codice ospite (step 2) -->
+    <!-- PANEL: conferma codice dopo prima registrazione -->
     <div id="panel-ospite-codice" style="display:none">
       <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step active"></div></div>
-      <h3>Accesso Non Socio</h3>
-      <p class="sub" id="sub-ospite-codice">Inserisci il codice non socio ricevuto via email insieme al tuo nome e cognome.</p>
+      <h3>Inserisci il codice</h3>
+      <p class="sub" id="sub-ospite-codice">Controlla la tua email — ti abbiamo inviato il codice non socio. Inseriscilo qui per completare la prenotazione.</p>
       <div id="chip-ospite-codice" class="slot-chip"></div>
-      <div class="field">
-        <label>Nome *</label>
-        <input type="text" id="ospite-codice-nome" placeholder="Mario" autocomplete="given-name">
-      </div>
-      <div class="field">
-        <label>Cognome *</label>
-        <input type="text" id="ospite-codice-cognome" placeholder="Rossi" autocomplete="family-name">
-      </div>
-      <div class="field">
-        <label>Codice Non Socio *</label>
-        <input type="text" id="ospite-codice" placeholder="es. OSP001" style="text-transform:uppercase;letter-spacing:.05em" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Note <span style="color:var(--muted);font-size:.75rem">(opzionale — max 40 caratteri)</span></label>
-        <input type="text" id="ospite-sport" placeholder="es. Tennis, Pallavolo..." maxlength="40" autocomplete="off">
-      </div>
+      <div class="field"><label>Codice Non Socio *</label><input type="text" id="ospite-codice" placeholder="es. OSP001" style="text-transform:uppercase;letter-spacing:.05em" autocomplete="off"></div>
       <p class="err-box" id="err-ospite-codice"></p>
       <div class="btn-row">
         <button class="btn" onclick="submitOspite()">Prenota</button>
@@ -723,73 +703,87 @@ function setupDati(type) {
 }
 
 // ── Registrazione ospite ──────────────────────────────────────
-async function registraOspite() {
+// ── Non Socio: unico punto di ingresso ───────────────────
+async function submitNonSocio() {
   const nome     = document.getElementById("ospite-nome").value.trim();
   const cognome  = document.getElementById("ospite-cognome").value.trim();
   const email    = document.getElementById("ospite-email").value.trim();
   const telefono = document.getElementById("ospite-telefono").value.trim();
+  const codiceReg= document.getElementById("ospite-codice-reg").value.trim().toUpperCase();
+  const sport    = document.getElementById("ospite-sport").value.trim();
   clearErr("err-ospite-reg");
+
   if(!nome)    { showErr("err-ospite-reg","Inserisci il tuo nome."); return; }
   if(!cognome) { showErr("err-ospite-reg","Inserisci il tuo cognome."); return; }
-  if(!email)   { showErr("err-ospite-reg","Inserisci la tua email."); return; }
 
   setLoading("panel-ospite-reg",true);
-  try {
-    const res = await fakeApi({ action:"registerGuest", nome, cognome, email, telefono });
-    if(!res.ok){ showErr("err-ospite-reg",res.error); setLoading("panel-ospite-reg",false); return; }
-    localStorage.setItem("campetto_ospite_email", email);
-    localStorage.setItem("campetto_ospite_nome", nome+" "+cognome);
-    const msg = res.nuovo
-      ? "Registrazione effettuata! Controlla la tua email — ti abbiamo inviato il codice non socio."
-      : "Email già registrata! Ti abbiamo reinviato il codice non socio alla tua email.";
-    document.getElementById("sub-ospite-codice").textContent = msg + " Inseriscilo qui sotto per completare la prenotazione.";
-    document.getElementById("chip-ospite-codice").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
-    showPanel("panel-ospite-codice");
-  } catch(e) {
-    showErr("err-ospite-reg","Errore di connessione. Riprova.");
+
+  if(codiceReg) {
+    // GIA REGISTRATO: login con nome+cognome+codice
+    try {
+      const ver = await fakeApi({ action:"loginGuest", codiceOspite:codiceReg, nome, cognome });
+      if(!ver.ok){ showErr("err-ospite-reg",ver.error); setLoading("panel-ospite-reg",false); return; }
+      // Prenota direttamente
+      const res = await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
+        nome:ver.nome+" "+ver.cognome, codiceSocio:ver.codice, sport });
+      if(!res.ok){ showErr("err-ospite-reg",res.error); setLoading("panel-ospite-reg",false); return; }
+      user={ nome:ver.nome+" "+ver.cognome, codiceSocio:ver.codice, isMember:false, guestToken:null };
+      saveSession();
+      myNextBooking={ date:pendingSlot.date, hour:parseInt(pendingSlot.hour), nome:user.nome, id:res.bookingId };
+      updateMyBookingBanner();
+      document.getElementById("ok-text").textContent="Ciao "+ver.nome+"! Riceverai una email di conferma.";
+      document.getElementById("chip-ok").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
+      showPanel("panel-ok"); loadWeek();
+    } catch(e) { showErr("err-ospite-reg","Errore di connessione. Riprova."); }
+    setLoading("panel-ospite-reg",false);
+
+  } else if(email) {
+    // PRIMA REGISTRAZIONE: nome+cognome+email+telefono
+    if(!telefono){ showErr("err-ospite-reg","Inserisci il tuo numero di telefono."); setLoading("panel-ospite-reg",false); return; }
+    try {
+      const res = await fakeApi({ action:"registerGuest", nome, cognome, email, telefono });
+      if(!res.ok){ showErr("err-ospite-reg",res.error); setLoading("panel-ospite-reg",false); return; }
+      // Vai al panel inserimento codice
+      document.getElementById("chip-ospite-codice").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
+      document.getElementById("sub-ospite-codice").textContent=
+        "Ti abbiamo inviato il codice non socio all'indirizzo "+email+". Inseriscilo qui per completare la prenotazione.";
+      document.getElementById("ospite-codice").value="";
+      showPanel("panel-ospite-codice");
+    } catch(e) { showErr("err-ospite-reg","Errore di connessione. Riprova."); }
+    setLoading("panel-ospite-reg",false);
+
+  } else {
+    showErr("err-ospite-reg","Inserisci l'email (prima registrazione) oppure il codice non socio (già registrato).");
+    setLoading("panel-ospite-reg",false);
   }
-  setLoading("panel-ospite-reg",false);
 }
 
-// ── Prenota come ospite con codice ───────────────────────────
+// ── Prenota dopo aver ricevuto il codice (prima registrazione) ──
 async function submitOspite() {
-  const nome   = document.getElementById("ospite-codice-nome").value.trim();
-  const cognome= document.getElementById("ospite-codice-cognome").value.trim();
   const codice = document.getElementById("ospite-codice").value.trim().toUpperCase();
+  const nome   = document.getElementById("ospite-nome").value.trim();
+  const cognome= document.getElementById("ospite-cognome").value.trim();
   const sport  = document.getElementById("ospite-sport").value.trim();
   clearErr("err-ospite-codice");
-  if(!nome)  { showErr("err-ospite-codice","Inserisci il tuo nome."); return; }
-  if(!cognome){ showErr("err-ospite-codice","Inserisci il tuo cognome."); return; }
   if(!codice){ showErr("err-ospite-codice","Inserisci il codice non socio ricevuto via email."); return; }
-
   setLoading("panel-ospite-codice",true);
   try {
     const ver = await fakeApi({ action:"loginGuest", codiceOspite:codice, nome, cognome });
     if(!ver.ok){ showErr("err-ospite-codice",ver.error); setLoading("panel-ospite-codice",false); return; }
-
-    // Prenota
-    const res = await fakeApi({
-      action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
-      nome: ver.nome+" "+ver.cognome, codiceSocio: ver.codice, sport
-    });
+    const res = await fakeApi({ action:"book", date:pendingSlot.date, hour:pendingSlot.hour,
+      nome:ver.nome+" "+ver.cognome, codiceSocio:ver.codice, sport });
     if(!res.ok){ showErr("err-ospite-codice",res.error); setLoading("panel-ospite-codice",false); return; }
-
-    // Salva sessione ospite
     user={ nome:ver.nome+" "+ver.cognome, codiceSocio:ver.codice, isMember:false, guestToken:null };
     saveSession();
     myNextBooking={ date:pendingSlot.date, hour:parseInt(pendingSlot.hour), nome:user.nome, id:res.bookingId };
     updateMyBookingBanner();
     document.getElementById("ok-text").textContent="Ciao "+ver.nome+"! Riceverai una email di conferma. Puoi avere una prenotazione futura attiva alla volta.";
     document.getElementById("chip-ok").innerHTML=slotChip(pendingSlot.date,pendingSlot.hour);
-    showPanel("panel-ok");
-    loadWeek();
-  } catch(e) {
-    showErr("err-ospite-codice","Errore di connessione. Riprova.");
-  }
+    showPanel("panel-ok"); loadWeek();
+  } catch(e) { showErr("err-ospite-codice","Errore di connessione. Riprova."); }
   setLoading("panel-ospite-codice",false);
 }
 
-function backToTipo(){ if(!user) showPanel("panel-tipo"); else closeModal(); }
 
 async function submitPrenotazione() {
   const nome   = document.getElementById("input-nome").value.trim();
