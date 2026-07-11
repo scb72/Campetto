@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 16:59 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 19:09 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,11 +160,11 @@
 
 <!-- APP ADMIN -->
 <div id="app">
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 11/07/2026 19:09</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
-    <button class="tab" onclick="switchTab('report-prenot')">📊 Report Ore</button>
-    <button class="tab" onclick="switchTab('report-soci')">📋 Report Soci</button>
+    <button class="tab" onclick="switchTab('report-prenot')">📊 Report per utilizzatore</button>
     <button class="tab" onclick="switchTab('nonsoci')">🧾 Non Soci</button>
     <button class="tab" onclick="switchTab('email')">📧 Invio Email</button>
     <button class="tab" onclick="switchTab('qrcode')">📱 QR Code</button>
@@ -239,25 +239,50 @@
   <!-- TAB REPORT ORE -->
   <div id="tab-report-prenot" class="panel">
     <div class="card">
-      <h4>📊 Ore prenotate per periodo</h4>
+      <h4>📊 Report per utilizzatore</h4>
+
+      <!-- Filtri rapidi periodo -->
+      <div style="margin-bottom:12px">
+        <label style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Periodo rapido</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('sett-prec')">Sett. prec.</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('sett-corr')">Sett. corrente</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('sett-succ')">Sett. succ.</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('mese-prec')">Mese prec.</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('mese-corr')">Mese corrente</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('mese-succ')">Mese succ.</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('anno-corr')">Anno corrente</button>
+          <button class="btn btn-ghost btn-sm" onclick="setPeriodo('tutto')">Tutto</button>
+        </div>
+      </div>
+
+      <!-- Filtri manuali -->
       <div class="filters">
-        <div class="field"><label>Dal *</label><input type="date" id="r-dal"></div>
-        <div class="field"><label>Al *</label><input type="date" id="r-al"></div>
-        <div class="field"><label>Socio / Non Socio</label>
+        <div class="field"><label>Dal</label><input type="date" id="r-dal"></div>
+        <div class="field"><label>Al</label><input type="date" id="r-al"></div>
+        <div class="field"><label>Tipo</label>
+          <select id="r-tipo">
+            <option value="">Tutti</option>
+            <option value="soci">Solo Soci</option>
+            <option value="nonsoci">Solo Non Soci</option>
+          </select>
+        </div>
+        <div class="field"><label>Utilizzatore</label>
           <select id="r-codice">
             <option value="">— Tutti —</option>
           </select>
         </div>
         <button class="btn btn-blue" onclick="caricaReportOre()">Genera</button>
       </div>
+
       <p class="msg-box msg-err" id="err-report-ore"></p>
       <div class="dl-bar" id="dl-bar-ore" style="display:none">
         <button class="btn btn-ghost btn-sm" onclick="scaricaCSV('report-ore')">⬇ Scarica CSV</button>
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Data</th><th>Ora</th><th>Nome</th><th>Codice</th><th>Note</th><th>Registrato il</th></tr></thead>
-          <tbody id="tbl-report-ore"><tr class="empty-row"><td colspan="6">Imposta un periodo e clicca Genera</td></tr></tbody>
+          <thead><tr><th>Data</th><th>Ora</th><th>Nome</th><th>Codice</th><th>Tipo</th><th>Note</th><th>Registrato il</th></tr></thead>
+          <tbody id="tbl-report-ore"><tr class="empty-row"><td colspan="7">Seleziona un periodo e clicca Genera</td></tr></tbody>
         </table>
       </div>
       <div id="summary-ore" style="margin-top:12px;font-size:.82rem;color:var(--muted)"></div>
@@ -706,9 +731,60 @@ async function confermaCancella() {
 }
 
 // ══════════════════════════════════════════════════════
-//  REPORT ORE
+//  REPORT PER UTILIZZATORE
 // ══════════════════════════════════════════════════════
-async function popolaSelectSoci() {
+function setPeriodo(tipo) {
+  const oggi = new Date();
+  let dal, al;
+  const y = oggi.getFullYear(), m = oggi.getMonth(), d = oggi.getDate();
+  const dow = oggi.getDay() === 0 ? 6 : oggi.getDay()-1; // 0=lun
+
+  if (tipo === "sett-corr") {
+    dal = new Date(y,m,d-dow);
+    al  = new Date(y,m,d-dow+6);
+  } else if (tipo === "sett-prec") {
+    dal = new Date(y,m,d-dow-7);
+    al  = new Date(y,m,d-dow-1);
+  } else if (tipo === "sett-succ") {
+    dal = new Date(y,m,d-dow+7);
+    al  = new Date(y,m,d-dow+13);
+  } else if (tipo === "mese-corr") {
+    dal = new Date(y,m,1);
+    al  = new Date(y,m+1,0);
+  } else if (tipo === "mese-prec") {
+    dal = new Date(y,m-1,1);
+    al  = new Date(y,m,0);
+  } else if (tipo === "mese-succ") {
+    dal = new Date(y,m+1,1);
+    al  = new Date(y,m+2,0);
+  } else if (tipo === "anno-corr") {
+    dal = new Date(y,0,1);
+    al  = new Date(y,11,31);
+  } else { // tutto
+    dal = new Date(2020,0,1);
+    al  = new Date(y+1,11,31);
+  }
+  document.getElementById("r-dal").value = fmtDate(dal);
+  document.getElementById("r-al").value  = fmtDate(al);
+  caricaReportOre();
+}
+
+async function caricaReportOre() {
+  const dal    = document.getElementById("r-dal").value;
+  const al     = document.getElementById("r-al").value;
+  const codice = document.getElementById("r-codice").value;
+  const tipo   = document.getElementById("r-tipo").value;
+  clearMsg("err-report-ore");
+  if (!dal || !al) { showMsg("err-report-ore","Seleziona il periodo."); return; }
+  document.getElementById("tbl-report-ore").innerHTML = `<tr class="empty-row"><td colspan="7"><span class="spinner"></span>Caricamento...</td></tr>`;
+  document.getElementById("dl-bar-ore").style.display = "none";
+  try {
+    const res = await api({ action:"getBookingsRange", codiceSocio:adminUser.codiceSocio, dal, al, filterCodice:codice, filterTipo:tipo });
+    if (!res.ok) { showMsg("err-report-ore",res.error); return; }
+    reportOreData = res.bookings;
+    renderReportOre(res.bookings);
+  } catch(e) { showMsg("err-report-ore","Errore di connessione."); }
+}
   const sel = document.getElementById("r-codice");
   if (sel.options.length > 1) return; // già popolato
   try {
@@ -762,23 +838,27 @@ async function caricaReportOre() {
 function renderReportOre(rows) {
   document.getElementById("summary-ore").textContent = "";
   if (!rows || rows.length === 0) {
-    document.getElementById("tbl-report-ore").innerHTML = `<tr class="empty-row"><td colspan="6">Nessuna prenotazione nel periodo</td></tr>`;
+    document.getElementById("tbl-report-ore").innerHTML = `<tr class="empty-row"><td colspan="7">Nessuna prenotazione nel periodo</td></tr>`;
     return;
   }
   let html = "";
   rows.forEach(r => {
-    const isGuest = String(r.codiceSocio).startsWith("GUEST_");
+    const isGuest = String(r.codiceSocio).toUpperCase().startsWith("OSP");
+    const tipo = isGuest ? '<span class="badge badge-blue">Non Socio</span>' : '<span class="badge badge-amber">Socio</span>';
     html += `<tr>
       <td>${fmtDateIT(r.date)}</td>
       <td>${String(r.hour).padStart(2,"0")}:00</td>
       <td>${r.nome}</td>
-      <td><span class="badge ${isGuest?"badge-blue":"badge-amber"}">${isGuest?"Ospite":r.codiceSocio}</span></td>
+      <td><code style="font-size:.8rem;color:var(--amber)">${r.codiceSocio}</code></td>
+      <td>${tipo}</td>
       <td style="color:var(--muted)">${r.sport||"—"}</td>
       <td style="color:var(--muted);font-size:.78rem">${r.timestamp?r.timestamp.substring(0,10):"—"}</td>
     </tr>`;
   });
   document.getElementById("tbl-report-ore").innerHTML = html;
-  document.getElementById("summary-ore").textContent = "Totale: " + rows.length + " prenotazioni nel periodo selezionato.";
+  const soci    = rows.filter(r=>!String(r.codiceSocio).toUpperCase().startsWith("OSP")).length;
+  const nonsoci = rows.length - soci;
+  document.getElementById("summary-ore").textContent = `Totale: ${rows.length} prenotazioni · Soci: ${soci} · Non Soci: ${nonsoci}`;
   document.getElementById("dl-bar-ore").style.display = "flex";
 }
 
@@ -901,9 +981,12 @@ function renderReportSoci(members) {
 function scaricaCSV(tipo) {
   let rows, headers, filename;
   if (tipo === "report-ore") {
-    headers = ["Data","Ora","Nome","CodiceSocio","Note","Registrato il"];
-    rows = reportOreData.map(r => [fmtDateIT(r.date), String(r.hour).padStart(2,"0")+":00", r.nome, r.codiceSocio, r.sport||"", r.timestamp||""]);
-    filename = "ore_prenotate.csv";
+    headers = ["Data","Ora","Nome","Codice","Tipo","Note","Registrato il"];
+    rows = reportOreData.map(r => {
+      const isGuest = String(r.codiceSocio).toUpperCase().startsWith("OSP");
+      return [fmtDateIT(r.date), String(r.hour).padStart(2,"0")+":00", r.nome, r.codiceSocio, isGuest?"Non Socio":"Socio", r.sport||"", r.timestamp||""];
+    });
+    filename = "report_utilizzatori.csv";
   } else {
     headers = ["Codice","Nome","Cognome","Email","Telefono","Admin","Stato"];
     rows = reportSociData.map(m => {
