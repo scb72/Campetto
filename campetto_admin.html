@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 04/07/2026 14:04 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 16:26 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -165,6 +165,7 @@
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
     <button class="tab" onclick="switchTab('report-prenot')">📊 Report Ore</button>
     <button class="tab" onclick="switchTab('report-soci')">📋 Report Soci</button>
+    <button class="tab" onclick="switchTab('nonsoci')">🧾 Non Soci</button>
     <button class="tab" onclick="switchTab('email')">📧 Invio Email</button>
     <button class="tab" onclick="switchTab('qrcode')">📱 QR Code</button>
   </div>
@@ -280,6 +281,29 @@
         </table>
       </div>
       <div id="summary-soci" style="margin-top:12px;font-size:.82rem;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- TAB NON SOCI -->
+  <div id="tab-nonsoci" class="panel">
+    <div class="card">
+      <h4>🧾 Prenotazioni Non Soci</h4>
+      <div class="filters">
+        <div class="field"><label>Dal</label><input type="date" id="ns-dal"></div>
+        <div class="field"><label>Al</label><input type="date" id="ns-al"></div>
+        <button class="btn btn-blue" onclick="caricaNonSoci()">Carica</button>
+      </div>
+      <p class="msg-box msg-err" id="err-nonsoci"></p>
+      <div class="dl-bar" id="dl-bar-nonsoci" style="display:none">
+        <button class="btn btn-ghost btn-sm" onclick="scaricaCSVNonSoci()">⬇ Scarica CSV</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Ora</th><th>Nome</th><th>Codice</th><th>Tel</th><th>Note</th><th>Pagato</th><th>Azione</th></tr></thead>
+          <tbody id="tbl-nonsoci"><tr class="empty-row"><td colspan="8">Seleziona un periodo e clicca Carica</td></tr></tbody>
+        </table>
+      </div>
+      <div id="summary-nonsoci" style="margin-top:12px;font-size:.82rem;color:var(--muted)"></div>
     </div>
   </div>
 
@@ -430,12 +454,27 @@ function switchTab(id) {
 //  INIT
 // ══════════════════════════════════════════════════════
 function initOreSelect() {
-  const sel = document.getElementById("p-ora");
+  aggiornaOreSelect();
+  document.getElementById("p-data").addEventListener("change", aggiornaOreSelect);
+}
+
+function aggiornaOreSelect() {
+  const sel  = document.getElementById("p-ora");
+  const data = document.getElementById("p-data").value;
+  const oggi = fmtDate(new Date());
+  const now  = new Date();
   sel.innerHTML = "";
-  for (let h=8; h<=22; h++) {
+  for (let h = 8; h <= 22; h++) {
+    // Se è oggi, nascondi le ore già passate
+    if (data === oggi && h <= now.getHours()) continue;
     const o = document.createElement("option");
     o.value = h;
     o.textContent = String(h).padStart(2,"0") + ":00";
+    sel.appendChild(o);
+  }
+  if (sel.options.length === 0) {
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = "Nessuna ora disponibile";
     sel.appendChild(o);
   }
 }
@@ -452,6 +491,8 @@ function initWeekFilter() {
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   document.getElementById("r-dal").value = fmtDate(firstOfMonth);
   document.getElementById("r-al").value  = fmtDate(today);
+  document.getElementById("ns-dal").value = fmtDate(firstOfMonth);
+  document.getElementById("ns-al").value  = fmtDate(today);
 }
 
 function fmtDate(d) {
@@ -696,6 +737,76 @@ function renderReportOre(rows) {
 // ══════════════════════════════════════════════════════
 //  REPORT SOCI
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  NON SOCI — PRENOTAZIONI E PAGAMENTI
+// ══════════════════════════════════════════════════════
+let nonSociData = [];
+
+async function caricaNonSoci() {
+  const dal = document.getElementById("ns-dal").value;
+  const al  = document.getElementById("ns-al").value;
+  clearMsg("err-nonsoci");
+  document.getElementById("tbl-nonsoci").innerHTML = `<tr class="empty-row"><td colspan="8"><span class="spinner"></span>Caricamento...</td></tr>`;
+  document.getElementById("dl-bar-nonsoci").style.display="none";
+  try {
+    const res = await api({ action:"getNonSociBookings", codiceSocio:adminUser.codiceSocio, dal:dal||"", al:al||"" });
+    if(!res.ok){ showMsg("err-nonsoci",res.error); return; }
+    nonSociData = res.bookings;
+    renderNonSoci(res.bookings);
+  } catch(e) { showMsg("err-nonsoci","Errore di connessione."); }
+}
+
+function renderNonSoci(bookings) {
+  document.getElementById("summary-nonsoci").textContent="";
+  if(!bookings||bookings.length===0){
+    document.getElementById("tbl-nonsoci").innerHTML=`<tr class="empty-row"><td colspan="8">Nessuna prenotazione trovata</td></tr>`;
+    return;
+  }
+  const now = new Date();
+  let html="", pagati=0;
+  bookings.forEach(b => {
+    const dt = new Date(b.date+"T"+String(b.hour).padStart(2,"00")+":00:00");
+    const passata = dt <= now;
+    if(b.pagato) pagati++;
+    html+=`<tr>
+      <td>${fmtDateIT(b.date)}</td>
+      <td>${String(b.hour).padStart(2,"00")}:00</td>
+      <td>${b.nome}</td>
+      <td><code style="font-size:.78rem;color:var(--amber)">${b.codice}</code></td>
+      <td style="color:var(--muted)">${b.telefono||"—"}</td>
+      <td style="color:var(--muted)">${b.note||"—"}</td>
+      <td><span class="badge ${b.pagato?"badge-green":"badge-red"}">${b.pagato?"Sì":"No"}</span></td>
+      <td>
+        ${passata
+          ? `<button class="btn btn-sm ${b.pagato?"btn-ghost":"btn-green"}" onclick="togglePagato('${b.id}',${!b.pagato})">${b.pagato?"Annulla":"✓ Pagato"}</button>`
+          : `<span style="color:var(--muted);font-size:.78rem">Non ancora</span>`}
+      </td>
+    </tr>`;
+  });
+  document.getElementById("tbl-nonsoci").innerHTML=html;
+  document.getElementById("summary-nonsoci").textContent=
+    `Totale: ${bookings.length} prenotazioni · Pagati: ${pagati} · Da pagare: ${bookings.length-pagati}`;
+  document.getElementById("dl-bar-nonsoci").style.display="flex";
+}
+
+async function togglePagato(bookingId, pagato) {
+  try {
+    const res = await api({ action:"setPagato", codiceSocio:adminUser.codiceSocio, bookingId, pagato });
+    if(!res.ok){ toast(res.error,"err"); return; }
+    toast(pagato?"✅ Segnato come pagato.":"Pagamento annullato.","ok");
+    caricaNonSoci();
+  } catch(e) { toast("Errore di connessione.","err"); }
+}
+
+function scaricaCSVNonSoci() {
+  const headers = ["Data","Ora","Nome","Codice","Telefono","Note","Pagato"];
+  const rows = nonSociData.map(b=>[fmtDateIT(b.date),String(b.hour).padStart(2,"00")+":00",b.nome,b.codice,b.telefono||"",b.note||"",b.pagato?"Sì":"No"]);
+  const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
+  a.download = "prenotazioni_non_soci.csv"; a.click();
+}
+
 async function caricaReportSoci() {
   const stato = document.getElementById("r-stato").value;
   clearMsg("err-report-soci");
