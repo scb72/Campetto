@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 09/07/2026 21:11 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 15:19 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -647,30 +647,26 @@ function openModal(date,hour,type) {
     ["chip-tipo","chip-dati"].forEach(id=>document.getElementById(id).innerHTML=slotChip(date,hour));
     if(user) {
       if(user.isMember) {
-        // Controlla se ha già il massimo di prenotazioni
-        if(myNextBooking) {
-          // Ha almeno una prenotazione futura — verifica il limite
-          document.getElementById("chip-dati").innerHTML=slotChip(date,hour);
-          setupDati("socio");
-          // Conta prenotazioni future visibili nella griglia
-          let futureCount = 0;
-          const now = new Date();
-          Object.entries(slotsData).forEach(([ds, hours]) => {
-            Object.entries(hours).forEach(([h, info]) => {
-              if(info && info.codiceSocio === user.codiceSocio) {
-                const dt = new Date(ds+"T"+String(h).padStart(2,"0")+":00:00");
-                if(dt > now) futureCount++;
-              }
-            });
+        // Conta prenotazioni future in TUTTI gli slot caricati
+        const now = new Date();
+        let futureCount = 0;
+        Object.entries(slotsData).forEach(([ds, hours]) => {
+          Object.entries(hours).forEach(([h, info]) => {
+            if(info && String(info.codiceSocio).toUpperCase() === user.codiceSocio.toUpperCase()) {
+              const dt = new Date(ds+"T"+String(h).padStart(2,"0")+":00:00");
+              if(dt > now) futureCount++;
+            }
           });
-          if(futureCount >= 2) {
-            document.getElementById("blocco-msg").textContent =
-              "Hai già "+futureCount+" prenotazioni future attive. I soci possono averne al massimo 2. Cancella una prenotazione esistente per poterne fare una nuova.";
-            document.getElementById("panel-dati").style.display="none";
-            document.getElementById("panel-blocco").style.display="block";
-            document.getElementById("modal-overlay").style.display="flex";
-            return;
-          }
+        });
+        // Se ha già 2 prenotazioni nella settimana corrente → blocca
+        // Altrimenti controlla myNextBooking per prenotazioni in altre settimane
+        const totale = futureCount + (myNextBooking && !slotsData[myNextBooking.date] ? 1 : 0);
+        if(totale >= 2) {
+          document.getElementById("blocco-msg").textContent =
+            "Hai già "+totale+" prenotazioni future attive. I soci possono averne al massimo 2. Cancella una prenotazione esistente per poterne fare una nuova.";
+          showPanel("panel-blocco");
+          document.getElementById("modal-overlay").style.display="flex";
+          return;
         }
         // Socio con sessione e slot disponibile → vai a dati
         setupDati("socio");
