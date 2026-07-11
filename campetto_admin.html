@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 16:26 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 16:43 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -243,7 +243,11 @@
       <div class="filters">
         <div class="field"><label>Dal *</label><input type="date" id="r-dal"></div>
         <div class="field"><label>Al *</label><input type="date" id="r-al"></div>
-        <div class="field"><label>Codice Socio</label><input type="text" id="r-codice" placeholder="Tutti" style="text-transform:uppercase"></div>
+        <div class="field"><label>Socio / Non Socio</label>
+          <select id="r-codice">
+            <option value="">— Tutti —</option>
+          </select>
+        </div>
         <button class="btn btn-blue" onclick="caricaReportOre()">Genera</button>
       </div>
       <p class="msg-box msg-err" id="err-report-ore"></p>
@@ -448,6 +452,7 @@ function switchTab(id) {
   event.target.classList.add("active");
   document.getElementById("tab-"+id).classList.add("active");
   if (id === "qrcode") setTimeout(generaQR, 100);
+  if (id === "report-prenot") popolaSelectSoci();
 }
 
 // ══════════════════════════════════════════════════════
@@ -535,7 +540,10 @@ function renderSoci(members) {
       <td style="color:var(--muted)">${m.telefono||"—"}</td>
       <td>${isAdmin?'<span class="badge badge-amber">Admin</span>':'—'}</td>
       <td><span class="badge ${attivo?"badge-green":"badge-red"}">${attivo?"Attivo":"Disattivo"}</span></td>
-      <td><button class="btn btn-sm ${attivo?"btn-red":"btn-green"}" onclick="toggleSocio('${m.codice}',${!attivo})">${attivo?"Disattiva":"Attiva"}</button></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm ${attivo?"btn-red":"btn-green"}" onclick="toggleSocio('${m.codice}',${!attivo})">${attivo?"Disattiva":"Attiva"}</button>
+        <button class="btn btn-sm ${isAdmin?"btn-ghost":"btn-amber"}" onclick="toggleAdmin('${m.codice}',${!isAdmin})">${isAdmin?"Rimuovi Admin":"Rendi Admin"}</button>
+      </td>
     </tr>`;
   });
   document.getElementById("tbl-soci").innerHTML = html;
@@ -589,9 +597,19 @@ async function toggleSocio(codice, attivo) {
     if (!res.ok) { toast(res.error,"err"); return; }
     toast(attivo ? "Socio attivato." : "Socio disattivato.","ok");
     caricaSoci();
-  } catch(e) {
-    toast("Errore di connessione.","err");
-  }
+  } catch(e) { toast("Errore di connessione.","err"); }
+}
+
+async function toggleAdmin(codice, isAdmin) {
+  if (codice === adminUser.codiceSocio) { toast("Non puoi modificare il tuo stesso account admin.","err"); return; }
+  try {
+    const res = await api({ action:"toggleAdmin", codiceSocio:adminUser.codiceSocio, targetCodice:codice, isAdmin });
+    if (!res.ok) { toast(res.error,"err"); return; }
+    toast(isAdmin ? "✅ Socio promosso ad Admin." : "Admin rimosso.","ok");
+    caricaSoci();
+  } catch(e) { toast("Errore di connessione.","err"); }
+}
+// placeholder
 }
 
 // ══════════════════════════════════════════════════════
@@ -692,10 +710,42 @@ async function confermaCancella() {
 // ══════════════════════════════════════════════════════
 //  REPORT ORE
 // ══════════════════════════════════════════════════════
+async function popolaSelectSoci() {
+  const sel = document.getElementById("r-codice");
+  if (sel.options.length > 1) return; // già popolato
+  try {
+    const res = await api({ action:"getAllMembers", codiceSocio:adminUser.codiceSocio, filterStato:"attivi" });
+    if (!res.ok) return;
+    // Aggiungi soci
+    const divSoci = document.createElement("option");
+    divSoci.disabled = true; divSoci.textContent = "── Soci ──";
+    sel.appendChild(divSoci);
+    res.members.forEach(m => {
+      const o = document.createElement("option");
+      o.value = m.codice;
+      o.textContent = m.codice+" — "+m.nome+" "+m.cognome;
+      sel.appendChild(o);
+    });
+    // Aggiungi non soci
+    const resG = await api({ action:"getAllGuests", codiceSocio:adminUser.codiceSocio });
+    if (resG.ok && resG.guests.length > 0) {
+      const divGuest = document.createElement("option");
+      divGuest.disabled = true; divGuest.textContent = "── Non Soci ──";
+      sel.appendChild(divGuest);
+      resG.guests.filter(g=>g.attivo).forEach(g => {
+        const o = document.createElement("option");
+        o.value = g.codice;
+        o.textContent = g.codice+" — "+g.nome+" "+g.cognome;
+        sel.appendChild(o);
+      });
+    }
+  } catch(e) {}
+}
+
 async function caricaReportOre() {
   const dal    = document.getElementById("r-dal").value;
   const al     = document.getElementById("r-al").value;
-  const codice = document.getElementById("r-codice").value.trim().toUpperCase();
+  const codice = document.getElementById("r-codice").value;
   clearMsg("err-report-ore");
   if (!dal || !al) { showMsg("err-report-ore","Seleziona il periodo."); return; }
   document.getElementById("tbl-report-ore").innerHTML = `<tr class="empty-row"><td colspan="6"><span class="spinner"></span>Caricamento...</td></tr>`;
