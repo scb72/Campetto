@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 15:52 -->
+<!-- Campo Polifunzionale Bonzo | campetto_prenotazioni.html | Versione: 11/07/2026 17:06 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -283,14 +283,32 @@
     </div>
     <div id="login-panel-nonsocio" style="display:none">
       <h3>Accesso Non Socio</h3>
-      <p class="sub">Inserisci nome, cognome e codice non socio ricevuto via email.</p>
-      <div class="field"><label>Nome</label><input type="text" id="login-ns-nome" placeholder="Mario" autocomplete="given-name"></div>
-      <div class="field"><label>Cognome</label><input type="text" id="login-ns-cognome" placeholder="Rossi" autocomplete="family-name"></div>
+      <p class="sub"><strong>Prima volta?</strong> Inserisci nome, cognome ed email — riceverai il codice via email.<br><strong>Già registrato?</strong> Inserisci nome, cognome e codice non socio.</p>
+      <div class="field"><label>Nome *</label><input type="text" id="login-ns-nome" placeholder="Mario" autocomplete="given-name"></div>
+      <div class="field"><label>Cognome *</label><input type="text" id="login-ns-cognome" placeholder="Rossi" autocomplete="family-name"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Prima registrazione:</p>
+      <div class="field"><label>Email *</label><input type="email" id="login-ns-email" placeholder="mario@email.com" autocomplete="email"></div>
+      <div class="field"><label>Telefono *</label><input type="tel" id="login-ns-tel" placeholder="+39 333 1234567" autocomplete="tel"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Già registrato:</p>
       <div class="field"><label>Codice Non Socio</label><input type="text" id="login-ns-codice" placeholder="es. OSP001" style="text-transform:uppercase" autocomplete="off"></div>
       <p class="err-box" id="login-ns-err"></p>
       <div class="btn-row">
-        <button class="btn" onclick="doLoginNonSocio()">Accedi</button>
+        <button class="btn" onclick="doLoginNonSocio()">Avanti →</button>
         <button class="btn ghost" onclick="showLoginPanel('login-panel-tipo')">← Indietro</button>
+      </div>
+    </div>
+
+    <!-- panel conferma codice dopo registrazione da login -->
+    <div id="login-panel-ns-codice" style="display:none">
+      <h3>Inserisci il codice</h3>
+      <p class="sub" id="login-ns-codice-sub">Controlla la tua email — ti abbiamo inviato il codice non socio.</p>
+      <div class="field"><label>Codice Non Socio *</label><input type="text" id="login-ns-codice2" placeholder="es. OSP001" style="text-transform:uppercase" autocomplete="off"></div>
+      <p class="err-box" id="login-ns-err2"></p>
+      <div class="btn-row">
+        <button class="btn" onclick="doLoginNonSocioConCodice()">Accedi</button>
+        <button class="btn ghost" onclick="showLoginPanel('login-panel-nonsocio')">← Indietro</button>
       </div>
     </div>
     <div id="login-panel-ok" style="display:none">
@@ -845,7 +863,7 @@ function closeLoginModal() {
   document.getElementById("login-overlay").style.display="none";
 }
 function showLoginPanel(id) {
-  ["login-panel-tipo","login-panel-socio","login-panel-nonsocio","login-panel-ok"]
+  ["login-panel-tipo","login-panel-socio","login-panel-nonsocio","login-panel-ns-codice","login-panel-ok"]
     .forEach(p=>document.getElementById(p).style.display=p===id?"block":"none");
 }
 function loginSelectType(type) {
@@ -885,37 +903,76 @@ async function doLoginSocio() {
 }
 
 async function doLoginNonSocio() {
-  const nome    = document.getElementById("login-ns-nome").value.trim();
-  const cognome = document.getElementById("login-ns-cognome").value.trim();
-  const codice  = document.getElementById("login-ns-codice").value.trim().toUpperCase();
+  const nome     = document.getElementById("login-ns-nome").value.trim();
+  const cognome  = document.getElementById("login-ns-cognome").value.trim();
+  const email    = document.getElementById("login-ns-email").value.trim();
+  const telefono = document.getElementById("login-ns-tel").value.trim();
+  const codice   = document.getElementById("login-ns-codice").value.trim().toUpperCase();
   clearErr("login-ns-err");
   if(!nome)    { showErr("login-ns-err","Inserisci il tuo nome."); return; }
   if(!cognome) { showErr("login-ns-err","Inserisci il tuo cognome."); return; }
-  if(!codice)  { showErr("login-ns-err","Inserisci il codice non socio."); return; }
   setLoading("login-panel-nonsocio",true);
+
+  if(codice) {
+    try {
+      const res = await fakeApi({ action:"loginGuest", codiceOspite:codice, nome, cognome });
+      if(!res.ok){ showErr("login-ns-err",res.error); setLoading("login-panel-nonsocio",false); return; }
+      user={ nome:res.nome+" "+res.cognome, codiceSocio:res.codice, isMember:false, guestToken:null };
+      saveSession(); updateBadge();
+      document.getElementById("btn-login-header").style.display="none";
+      const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:res.codice });
+      if(nb.ok && nb.found){ myNextBooking={ date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id }; currentWeekStart=getMondayOf(new Date(nb.date+"T00:00:00")); }
+      else { myNextBooking=null; }
+      updateMyBookingBanner();
+      document.getElementById("login-ok-title").textContent="Bentornato, "+res.nome+"!";
+      document.getElementById("login-ok-text").textContent= myNextBooking ? "Hai una prenotazione futura attiva. Usa il banner in alto per vederla." : "Nessuna prenotazione futura. Clicca su uno slot libero per prenotare.";
+      showLoginPanel("login-panel-ok"); loadWeek();
+    } catch(e) { showErr("login-ns-err","Errore di connessione. Riprova."); }
+    setLoading("login-panel-nonsocio",false);
+
+  } else if(email) {
+    if(!telefono){ showErr("login-ns-err","Inserisci il tuo numero di telefono."); setLoading("login-panel-nonsocio",false); return; }
+    try {
+      const res = await fakeApi({ action:"registerGuest", nome, cognome, email, telefono });
+      if(!res.ok){ showErr("login-ns-err",res.error); setLoading("login-panel-nonsocio",false); return; }
+      document.getElementById("login-ns-codice-sub").textContent = res.nuovo
+        ? "Ti abbiamo inviato il codice non socio all'indirizzo "+email+". Inseriscilo qui per accedere."
+        : "Sei già registrato! Ti abbiamo reinviato il codice non socio all'indirizzo "+email+".";
+      document.getElementById("login-ns-codice2").value="";
+      showLoginPanel("login-panel-ns-codice");
+    } catch(e) { showErr("login-ns-err","Errore di connessione. Riprova."); }
+    setLoading("login-panel-nonsocio",false);
+
+  } else {
+    showErr("login-ns-err","Inserisci l'email (prima registrazione) oppure il codice non socio (già registrato).");
+    setLoading("login-panel-nonsocio",false);
+  }
+}
+
+async function doLoginNonSocioConCodice() {
+  const nome    = document.getElementById("login-ns-nome").value.trim();
+  const cognome = document.getElementById("login-ns-cognome").value.trim();
+  const codice  = document.getElementById("login-ns-codice2").value.trim().toUpperCase();
+  clearErr("login-ns-err2");
+  if(!codice){ showErr("login-ns-err2","Inserisci il codice ricevuto via email."); return; }
+  setLoading("login-panel-ns-codice",true);
   try {
     const res = await fakeApi({ action:"loginGuest", codiceOspite:codice, nome, cognome });
-    if(!res.ok) { showErr("login-ns-err",res.error); setLoading("login-panel-nonsocio",false); return; }
+    if(!res.ok){ showErr("login-ns-err2",res.error); setLoading("login-panel-ns-codice",false); return; }
     user={ nome:res.nome+" "+res.cognome, codiceSocio:res.codice, isMember:false, guestToken:null };
     saveSession(); updateBadge();
     document.getElementById("btn-login-header").style.display="none";
     const nb = await fakeApi({ action:"getMyNextBooking", codiceSocio:res.codice });
-    if(nb.ok && nb.found) {
-      myNextBooking={ date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id };
-      currentWeekStart=getMondayOf(new Date(nb.date+"T00:00:00"));
-    } else { myNextBooking=null; }
+    if(nb.ok && nb.found){ myNextBooking={ date:nb.date, hour:nb.hour, nome:nb.nome, id:nb.id }; currentWeekStart=getMondayOf(new Date(nb.date+"T00:00:00")); }
+    else { myNextBooking=null; }
     updateMyBookingBanner();
     document.getElementById("login-ok-title").textContent="Bentornato, "+res.nome+"!";
-    document.getElementById("login-ok-text").textContent= myNextBooking
-      ? "Hai una prenotazione futura attiva. Usa il banner in alto per vederla."
-      : "Nessuna prenotazione futura. Clicca su uno slot libero per prenotare.";
-    showLoginPanel("login-panel-ok");
-    loadWeek();
-  } catch(e) {
-    showErr("login-ns-err","Errore di connessione. Riprova.");
-    setLoading("login-panel-nonsocio",false);
-  }
+    document.getElementById("login-ok-text").textContent= myNextBooking ? "Hai una prenotazione futura attiva." : "Nessuna prenotazione futura. Clicca su uno slot per prenotare.";
+    showLoginPanel("login-panel-ok"); loadWeek();
+  } catch(e) { showErr("login-ns-err2","Errore di connessione. Riprova."); }
+  setLoading("login-panel-ns-codice",false);
 }
+
 
 // ── Cancellazione ─────────────────────────────────────────
 async function doCancel() {
