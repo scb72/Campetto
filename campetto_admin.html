@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:17 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:24 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:17</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:24</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -450,6 +450,7 @@ async function doLogin() {
     if (!res.ok) { showMsg("login-err", "Codice non valido o non attivo."); return; }
     if (!res.isAdmin) { showMsg("login-err", "Accesso negato: non sei un amministratore."); return; }
     adminUser = { nome, codiceSocio: codice };
+    sessionStorage.setItem("campetto_admin_session", JSON.stringify(adminUser));
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("app").style.display = "flex";
     document.getElementById("badge-label").textContent = nome + " · Admin";
@@ -464,15 +465,31 @@ async function doLogin() {
 function logout() {
   if (!confirm("Vuoi uscire dall'area admin?")) return;
   adminUser = null;
+  sessionStorage.removeItem("campetto_admin_session");
   document.getElementById("badge-label").textContent = "—";
   document.getElementById("user-badge").className = "user-badge";
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("app").style.display = "none";
-  // Reset campi login
   document.getElementById("input-codice").value = "";
   document.getElementById("input-nome").value = "";
   clearMsg("login-err");
 }
+
+// Ripristina sessione se presente
+(function() {
+  try {
+    const s = sessionStorage.getItem("campetto_admin_session");
+    if (s) {
+      adminUser = JSON.parse(s);
+      document.getElementById("badge-label").textContent = adminUser.nome + " · Admin";
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("app").style.display = "flex";
+      initOreSelect();
+      initWeekFilter();
+      caricaSoci();
+    }
+  } catch(e) {}
+})();
 
 // ══════════════════════════════════════════════════════
 //  TABS
