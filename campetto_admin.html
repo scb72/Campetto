@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 11/07/2026 19:09 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 10:30 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 11/07/2026 19:09</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 10:30</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -785,6 +785,8 @@ async function caricaReportOre() {
     renderReportOre(res.bookings);
   } catch(e) { showMsg("err-report-ore","Errore di connessione."); }
 }
+
+async function popolaSelectSoci() {
   const sel = document.getElementById("r-codice");
   if (sel.options.length > 1) return; // già popolato
   try {
