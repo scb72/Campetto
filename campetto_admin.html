@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 10:30 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:09 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 10:30</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:09</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -464,8 +464,14 @@ async function doLogin() {
 function logout() {
   if (!confirm("Vuoi uscire dall'area admin?")) return;
   adminUser = null;
+  document.getElementById("badge-label").textContent = "—";
+  document.getElementById("user-badge").className = "user-badge";
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("app").style.display = "none";
+  // Reset campi login
+  document.getElementById("input-codice").value = "";
+  document.getElementById("input-nome").value = "";
+  clearMsg("login-err");
 }
 
 // ══════════════════════════════════════════════════════
