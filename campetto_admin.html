@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:09 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:17 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:09</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:17</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -824,24 +824,7 @@ async function popolaSelectSoci() {
   } catch(e) {}
 }
 
-async function caricaReportOre() {
-  const dal    = document.getElementById("r-dal").value;
-  const al     = document.getElementById("r-al").value;
-  const codice = document.getElementById("r-codice").value;
-  clearMsg("err-report-ore");
-  if (!dal || !al) { showMsg("err-report-ore","Seleziona il periodo."); return; }
-  document.getElementById("tbl-report-ore").innerHTML = `<tr class="empty-row"><td colspan="6"><span class="spinner"></span>Caricamento...</td></tr>`;
-  document.getElementById("dl-bar-ore").style.display = "none";
 
-  try {
-    const res = await api({ action:"getBookingsRange", codiceSocio:adminUser.codiceSocio, dal, al, filterCodice:codice });
-    if (!res.ok) { showMsg("err-report-ore",res.error); return; }
-    reportOreData = res.bookings;
-    renderReportOre(res.bookings);
-  } catch(e) {
-    showMsg("err-report-ore","Errore di connessione.");
-  }
-}
 
 function renderReportOre(rows) {
   document.getElementById("summary-ore").textContent = "";
