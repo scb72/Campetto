@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 12/07/2026 11:24 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 25/07/2026 20:29 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,12 +160,13 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 12/07/2026 11:24</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 25/07/2026 20:29</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
     <button class="tab" onclick="switchTab('report-prenot')">📊 Report per utilizzatore</button>
     <button class="tab" onclick="switchTab('nonsoci')">🧾 Non Soci</button>
+    <button class="tab" onclick="switchTab('importa')">📥 Importa Soci</button>
     <button class="tab" onclick="switchTab('email')">📧 Invio Email</button>
     <button class="tab" onclick="switchTab('qrcode')">📱 QR Code</button>
   </div>
@@ -310,6 +311,45 @@
         </table>
       </div>
       <div id="summary-soci" style="margin-top:12px;font-size:.82rem;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- TAB IMPORTA SOCI -->
+  <div id="tab-importa" class="panel">
+    <div class="card">
+      <h4>📥 Importazione massiva soci</h4>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Carica il file Excel esportato dal gestionale (formato originale con colonne NOMINATIVO, N° TESSERA, SCADENZA).<br>
+        Il sistema aggiungerà i nuovi soci e attiverà quelli esistenti con tessera non scaduta.
+      </p>
+      <div class="field" style="margin-bottom:16px">
+        <label>File Excel soci (.xlsx)</label>
+        <input type="file" id="import-file" accept=".xlsx" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);width:100%">
+      </div>
+      <button class="btn btn-green" onclick="importaSoci()">📥 Importa</button>
+      <p class="msg-box msg-err" id="err-importa" style="margin-top:12px"></p>
+      <p class="msg-box msg-ok"  id="ok-importa"  style="margin-top:12px"></p>
+      <div id="importa-report" style="display:none;margin-top:16px">
+        <h4 style="font-family:'Syne',sans-serif;font-size:.95rem;margin-bottom:10px">Risultato importazione</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Cognome</th><th>Nome</th><th>Codice</th><th>Tessera</th><th>Scadenza</th><th>Esito</th></tr></thead>
+            <tbody id="tbl-importa"></tbody>
+          </table>
+        </div>
+        <div id="summary-importa" style="margin-top:10px;font-size:.82rem;color:var(--muted)"></div>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(231,76,60,.3)">
+      <h4 style="color:var(--red)">⚠️ Azzera stagione</h4>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Imposta <strong>Attivo = FALSE</strong> per tutti i soci non amministratori.<br>
+        Da usare ad inizio stagione prima di importare la nuova lista. <strong>Operazione irreversibile.</strong>
+      </p>
+      <p class="msg-box msg-err" id="err-azzera"></p>
+      <p class="msg-box msg-ok"  id="ok-azzera"></p>
+      <button class="btn btn-red" onclick="azzeraStagione()">🔄 Azzera tutti i soci</button>
     </div>
   </div>
 
@@ -873,6 +913,167 @@ function renderReportOre(rows) {
 // ══════════════════════════════════════════════════════
 //  REPORT SOCI
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  IMPORTA SOCI
+// ══════════════════════════════════════════════════════
+async function importaSoci() {
+  const fileInput = document.getElementById("import-file");
+  clearMsg("err-importa"); clearMsg("ok-importa");
+  document.getElementById("importa-report").style.display="none";
+
+  if (!fileInput.files.length) { showMsg("err-importa","Seleziona un file Excel."); return; }
+
+  const file = fileInput.files[0];
+
+  // Leggi Excel con FileReader + SheetJS
+  const XLSX = await loadSheetJS();
+  if (!XLSX) { showMsg("err-importa","Errore caricamento libreria Excel. Riprova."); return; }
+
+  const data = await new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+
+  const wb   = XLSX.read(data, { type:"array", cellDates:true });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
+
+  // Trova riga intestazione
+  let headerRow = -1;
+  for (let i=0; i<rows.length; i++) {
+    if (rows[i] && rows[i].some(c => String(c||"").includes("NOMINATIVO"))) {
+      headerRow = i; break;
+    }
+  }
+  if (headerRow === -1) { showMsg("err-importa","Intestazione non trovata. Verifica il formato del file."); return; }
+
+  const headers = rows[headerRow].map(h => String(h||"").toUpperCase().trim());
+  const iNome     = headers.findIndex(h => h.includes("NOMINATIVO"));
+  const iTessera  = headers.findIndex(h => h.includes("TESSERA") && h.includes("N"));
+  const iScadenza = headers.findIndex(h => h.includes("SCADENZA"));
+
+  if (iNome===-1||iTessera===-1) { showMsg("err-importa","Colonne NOMINATIVO o N° TESSERA non trovate."); return; }
+
+  // Estrai soci validi
+  const oggi = new Date(); oggi.setHours(0,0,0,0);
+  const sociDaImportare = [];
+
+  for (let i=headerRow+1; i<rows.length; i++) {
+    const row = rows[i];
+    if (!row || !row[iNome] || !row[iTessera]) continue;
+
+    const nomeCompleto = String(row[iNome]).trim();
+    const tessera      = String(row[iTessera]).trim();
+    if (!tessera || tessera === "null") continue;
+
+    // Scadenza
+    let scadenza = null, attivo = true;
+    if (iScadenza !== -1 && row[iScadenza]) {
+      const sc = row[iScadenza];
+      scadenza = sc instanceof Date ? sc : new Date(sc);
+      scadenza.setHours(0,0,0,0);
+      attivo = scadenza >= oggi;
+    }
+
+    // Cognome = prima parola, Nome = resto
+    const parti   = nomeCompleto.split(" ");
+    const cognome = parti[0];
+    const nome    = parti.slice(1).join(" ");
+    const codice  = tessera.slice(-3);  // non usato, assegnato dal backend
+
+    sociDaImportare.push({ nome, cognome, tessera, scadenza, attivo });
+  }
+
+  if (!sociDaImportare.length) { showMsg("err-importa","Nessun socio valido trovato nel file."); return; }
+
+  // Invia al backend
+  showMsg("ok-importa", `⏳ Importazione di ${sociDaImportare.length} soci in corso...`);
+  document.querySelector("#ok-importa").style.display="block";
+
+  try {
+    const res = await api({
+      action: "importSoci",
+      codiceSocio: adminUser.codiceSocio,
+      soci: JSON.stringify(sociDaImportare.map(s => ({
+        nome:     s.nome,
+        cognome:  s.cognome,
+        tessera:  s.tessera,
+        scadenza: s.scadenza ? s.scadenza.toISOString().substring(0,10) : "",
+        attivo:   s.attivo
+      })))
+    });
+
+    if (!res.ok) { showMsg("err-importa", res.error); clearMsg("ok-importa"); return; }
+
+    // Mostra report
+    renderImportaReport(res.risultati);
+    showMsg("ok-importa", `✅ Importazione completata: ${res.aggiunti} aggiunti, ${res.aggiornati} rinnovati, ${res.disattivati} disattivati, ${res.invariati} invariati.`);
+    caricaSoci();
+  } catch(e) {
+    showMsg("err-importa","Errore di connessione. Riprova.");
+    clearMsg("ok-importa");
+  }
+}
+
+function renderImportaReport(risultati) {
+  if (!risultati||!risultati.length) return;
+  let html="";
+  risultati.forEach(r => {
+    const badge =
+      r.esito==="aggiunto"         ? '<span class="badge badge-green">Aggiunto</span>'
+    : r.esito==="aggiunto_inattivo"? '<span class="badge" style="background:var(--bg3)">Aggiunto (inattivo)</span>'
+    : r.esito==="rinnovato"        ? '<span class="badge badge-blue">Rinnovato ✓</span>'
+    : r.esito==="disattivato"      ? '<span class="badge badge-red">Disattivato</span>'
+    : r.esito==="rimosso"          ? '<span class="badge badge-red">Rimosso (non in lista)</span>'
+    : r.esito==="scaduto"          ? '<span class="badge" style="background:#7f4a00;color:#fff">Scaduto</span>'
+    :                                '<span class="badge" style="background:var(--bg3)">Invariato</span>';
+    html+=`<tr>
+      <td>${r.cognome}</td><td>${r.nome}</td>
+      <td><code style="font-size:.78rem;color:var(--amber)">${r.codice}</code></td>
+      <td style="color:var(--muted);font-size:.78rem">${r.tessera||"—"}</td>
+      <td style="color:var(--muted);font-size:.78rem">${r.scadenza||"—"}</td>
+      <td>${badge}</td>
+    </tr>`;
+  });
+  document.getElementById("tbl-importa").innerHTML=html;
+  const agg  = risultati.filter(r=>r.esito==="aggiunto").length;
+  const rin  = risultati.filter(r=>r.esito==="rinnovato").length;
+  const dis  = risultati.filter(r=>r.esito==="disattivato"||r.esito==="rimosso").length;
+  const inv  = risultati.filter(r=>r.esito==="invariato").length;
+  const sca  = risultati.filter(r=>r.esito==="scaduto"||r.esito==="aggiunto_inattivo").length;
+  document.getElementById("summary-importa").textContent=
+    `Totale: ${risultati.length} · Aggiunti: ${agg} · Rinnovati: ${rin} · Disattivati: ${dis} · Scaduti: ${sca} · Invariati: ${inv}`;
+  document.getElementById("importa-report").style.display="block";
+}
+
+// Carica SheetJS dinamicamente
+
+// Carica SheetJS dinamicamente
+function loadSheetJS() {
+  return new Promise(res => {
+    if (window.XLSX) { res(window.XLSX); return; }
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = () => res(window.XLSX);
+    s.onerror = () => res(null);
+    document.head.appendChild(s);
+  });
+}
+
+async function azzeraStagione() {
+  clearMsg("err-azzera"); clearMsg("ok-azzera");
+  if (!confirm("⚠️ Sei sicuro? Questa operazione disattiverà TUTTI i soci non amministratori.\n\nL'operazione è irreversibile. Procedi?")) return;
+  if (!confirm("Conferma definitiva: azzerare tutti i soci?")) return;
+  try {
+    const res = await api({ action:"azzeraStagione", codiceSocio:adminUser.codiceSocio });
+    if (!res.ok) { showMsg("err-azzera", res.error); return; }
+    showMsg("ok-azzera", `✅ ${res.azzerati} soci disattivati. Ora puoi importare la nuova lista.`);
+    caricaSoci();
+  } catch(e) { showMsg("err-azzera","Errore di connessione."); }
+}
+
 // ══════════════════════════════════════════════════════
 //  NON SOCI — PRENOTAZIONI E PAGAMENTI
 // ══════════════════════════════════════════════════════
