@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 25/07/2026 20:29 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 25/07/2026 20:54 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,13 +160,14 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 25/07/2026 20:29</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 25/07/2026 20:54</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
     <button class="tab" onclick="switchTab('report-prenot')">📊 Report per utilizzatore</button>
     <button class="tab" onclick="switchTab('nonsoci')">🧾 Non Soci</button>
     <button class="tab" onclick="switchTab('importa')">📥 Importa Soci</button>
+    <button class="tab" onclick="switchTab('log-importa')">📋 Log Importazioni</button>
     <button class="tab" onclick="switchTab('email')">📧 Invio Email</button>
     <button class="tab" onclick="switchTab('qrcode')">📱 QR Code</button>
   </div>
@@ -197,8 +198,8 @@
       <p class="msg-box msg-err" id="err-soci"></p>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Codice</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Admin</th><th>Stato</th><th>Azioni</th></tr></thead>
-          <tbody id="tbl-soci"><tr class="empty-row"><td colspan="8"><span class="spinner"></span>Caricamento...</td></tr></tbody>
+          <thead><tr><th>Codice</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Admin</th><th>Stato</th><th>Aggiornato</th><th>Azioni</th></tr></thead>
+          <tbody id="tbl-soci"><tr class="empty-row"><td colspan="9"><span class="spinner"></span>Caricamento...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -350,6 +351,27 @@
       <p class="msg-box msg-err" id="err-azzera"></p>
       <p class="msg-box msg-ok"  id="ok-azzera"></p>
       <button class="btn btn-red" onclick="azzeraStagione()">🔄 Azzera tutti i soci</button>
+    </div>
+  </div>
+
+  <!-- TAB LOG IMPORTAZIONI -->
+  <div id="tab-log-importa" class="panel">
+    <div class="card">
+      <h4>📋 Storico Importazioni</h4>
+      <div style="margin-bottom:12px">
+        <button class="btn btn-blue" onclick="caricaLogImportazioni()">🔄 Aggiorna</button>
+      </div>
+      <p class="msg-box msg-err" id="err-log-importa"></p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Totale</th><th>Aggiunti</th><th>Rinnovati</th><th>Disattivati</th><th>Rimossi</th><th>Scaduti</th><th>Invariati</th></tr></thead>
+          <tbody id="tbl-log-importa"><tr class="empty-row"><td colspan="8">Clicca Aggiorna per caricare</td></tr></tbody>
+        </table>
+      </div>
+      <div id="log-detail" style="display:none;margin-top:16px">
+        <h4 style="font-size:.9rem;margin-bottom:8px">Dettaglio ultima importazione</h4>
+        <div id="log-detail-content" style="font-size:.82rem;color:var(--muted);line-height:1.8"></div>
+      </div>
     </div>
   </div>
 
@@ -541,6 +563,7 @@ function switchTab(id) {
   document.getElementById("tab-"+id).classList.add("active");
   if (id === "qrcode") setTimeout(generaQR, 100);
   if (id === "report-prenot") popolaSelectSoci();
+  if (id === "log-importa") caricaLogImportazioni();
 }
 
 // ══════════════════════════════════════════════════════
@@ -601,7 +624,7 @@ function fmtDateIT(s) {
 //  SOCI
 // ══════════════════════════════════════════════════════
 async function caricaSoci() {
-  document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="8"><span class="spinner"></span>Caricamento...</td></tr>`;
+  document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="9"><span class="spinner"></span>Caricamento...</td></tr>`;
   try {
     const res = await api({ action:"getAllMembers", codiceSocio: adminUser.codiceSocio });
     if (!res.ok) { showMsg("err-soci", res.error); return; }
@@ -613,7 +636,7 @@ async function caricaSoci() {
 
 function renderSoci(members) {
   if (!members || members.length === 0) {
-    document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="8">Nessun socio trovato</td></tr>`;
+    document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="9">Nessun socio trovato</td></tr>`;
     return;
   }
   let html = "";
@@ -628,6 +651,7 @@ function renderSoci(members) {
       <td style="color:var(--muted)">${m.telefono||"—"}</td>
       <td>${isAdmin?'<span class="badge badge-amber">Admin</span>':'—'}</td>
       <td><span class="badge ${attivo?"badge-green":"badge-red"}">${attivo?"Attivo":"Disattivo"}</span></td>
+      <td style="color:var(--muted);font-size:.78rem">${m.ultimoAgg||"—"}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm ${attivo?"btn-red":"btn-green"}" onclick="toggleSocio('${m.codice}',${!attivo})">${attivo?"Disattiva":"Attiva"}</button>
         <button class="btn btn-sm ${isAdmin?"btn-ghost":"btn-amber"}" onclick="toggleAdmin('${m.codice}',${!isAdmin})">${isAdmin?"Rimuovi Admin":"Rendi Admin"}</button>
@@ -913,6 +937,49 @@ function renderReportOre(rows) {
 // ══════════════════════════════════════════════════════
 //  REPORT SOCI
 // ══════════════════════════════════════════════════════
+async function caricaLogImportazioni() {
+  clearMsg("err-log-importa");
+  document.getElementById("tbl-log-importa").innerHTML = `<tr class="empty-row"><td colspan="8"><span class="spinner"></span>Caricamento...</td></tr>`;
+  document.getElementById("log-detail").style.display="none";
+  try {
+    const res = await api({ action:"getLogImportazioni", codiceSocio:adminUser.codiceSocio });
+    if (!res.ok) { showMsg("err-log-importa",res.error); return; }
+    if (!res.log.length) {
+      document.getElementById("tbl-log-importa").innerHTML=`<tr class="empty-row"><td colspan="8">Nessuna importazione registrata</td></tr>`;
+      return;
+    }
+    let html="";
+    res.log.forEach((r,i) => {
+      html+=`<tr style="cursor:pointer" onclick="mostraDettaglioLog(${i})" title="Clicca per dettaglio">
+        <td>${r.data}</td>
+        <td>${r.totale}</td>
+        <td><span class="badge badge-green">${r.aggiunti}</span></td>
+        <td><span class="badge badge-blue">${r.rinnovati}</span></td>
+        <td><span class="badge badge-red">${r.disattivati}</span></td>
+        <td><span class="badge badge-red">${r.rimossi}</span></td>
+        <td>${r.scaduti}</td>
+        <td>${r.invariati}</td>
+      </tr>`;
+    });
+    document.getElementById("tbl-log-importa").innerHTML=html;
+    window._logData = res.log;
+    // Mostra automaticamente il dettaglio dell'ultima
+    mostraDettaglioLog(0);
+  } catch(e) { showMsg("err-log-importa","Errore di connessione."); }
+}
+
+function mostraDettaglioLog(idx) {
+  const r = window._logData[idx];
+  if (!r) return;
+  const div = document.getElementById("log-detail-content");
+  div.innerHTML =
+    `<strong>Data:</strong> ${r.data}<br>` +
+    `<strong>🟢 Aggiunti (${r.aggiunti}):</strong> ${r.detAggiunti}<br>` +
+    `<strong>🔵 Rinnovati (${r.rinnovati}):</strong> ${r.detRinnovati}<br>` +
+    `<strong>🔴 Disattivati/Rimossi (${parseInt(r.disattivati)+parseInt(r.rimossi)}):</strong> ${r.detDisattivati}`;
+  document.getElementById("log-detail").style.display="block";
+}
+
 // ══════════════════════════════════════════════════════
 //  IMPORTA SOCI
 // ══════════════════════════════════════════════════════
