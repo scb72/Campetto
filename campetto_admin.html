@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 14:59 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 16:27 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -84,10 +84,12 @@
   /* TABLE */
   .tbl-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); }
   table { width:100%; border-collapse:collapse; min-width:500px; }
-  thead th { padding:10px 12px; font-family:'Syne',sans-serif; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; background:var(--bg2); }
-  tbody td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:0.85rem; vertical-align:middle; }
+  thead th { padding:8px 10px; font-family:'Syne',sans-serif; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; background:var(--bg2); }
+  tbody td { padding:8px 10px; border-bottom:1px solid var(--border); font-size:0.82rem; vertical-align:middle; }
   tbody tr:last-child td { border-bottom:none; }
   tbody tr:hover td { background:var(--bg3); }
+  .tbl-soci-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); }
+  #tbl-soci td, #tbl-soci th { padding:7px 8px; font-size:.78rem; white-space:nowrap; }
   .badge { display:inline-block; border-radius:20px; padding:3px 10px; font-size:0.72rem; font-weight:600; }
   .badge-green { background:rgba(46,204,113,.15); color:var(--green); border:1px solid rgba(46,204,113,.3); }
   .badge-red   { background:rgba(231,76,60,.15);  color:#ff9b93;      border:1px solid rgba(231,76,60,.3); }
@@ -160,7 +162,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 14:59</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 16:27</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -663,13 +665,14 @@ function renderSoci(members) {
       <td>${isAdmin?'<span class="badge badge-amber">Admin</span>':'—'}</td>
       <td><span class="badge ${attivo?"badge-green":"badge-red"}">${attivo?"Attivo":"Disattivo"}</span></td>
       <td style="color:var(--muted);font-size:.78rem">${m.ultimoAgg||"—"}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <td style="display:flex;gap:4px;flex-wrap:nowrap">
         <button class="btn btn-sm ${attivo?"btn-red":"btn-green"}" onclick="toggleSocio('${m.codice}',${!attivo})">${attivo?"Disattiva":"Attiva"}</button>
-        <button class="btn btn-sm ${isAdmin?"btn-ghost":"btn-amber"}" onclick="toggleAdmin('${m.codice}',${!isAdmin})">${isAdmin?"Rimuovi Admin":"Rendi Admin"}</button>
+        <button class="btn btn-sm ${isAdmin?"btn-ghost":"btn-amber"}" onclick="toggleAdmin('${m.codice}',${!isAdmin})">${isAdmin?"- Admin":"+ Admin"}</button>
       </td>
     </tr>`;
   });
   document.getElementById("tbl-soci").innerHTML = html;
+  aggiornaProximoCodice(members);
 }
 
 async function inserisciSocio(inviaMailSubito) {
@@ -706,8 +709,7 @@ async function inserisciSocio(inviaMailSubito) {
     }
 
     ["s-codice","s-nome","s-cognome","s-email","s-tel"].forEach(id => document.getElementById(id).value="");
-    caricaSoci();
-  } catch(e) {
+    caricaSoci();  } catch(e) {
     showMsg("err-nuovo-socio","Errore di connessione.");
   } finally {
     document.querySelectorAll("#tab-soci .btn").forEach(b => b.disabled = false);
@@ -1391,6 +1393,17 @@ function renderSociEmail(members) {
   aggiornaContatore();
 }
 
+function aggiornaProximoCodice(members) {
+  let max = 0;
+  members.forEach(m => {
+    const num = parseInt(String(m.codice).replace(/\D/g,""));
+    if (!isNaN(num) && num > max) max = num;
+  });
+  const prossimo = String(max+1).padStart(3,"0");
+  document.getElementById("s-codice").value = prossimo;
+  document.getElementById("s-codice").placeholder = prossimo;
+}
+
 function selezionaTutti(checked) {
   document.querySelectorAll(".chk-socio").forEach(c => c.checked = checked);
   document.getElementById("chk-all").checked = checked;
@@ -1500,14 +1513,4 @@ function toast(msg,type=""){
   el.style.cssText+= type==="ok"
     ? ";border-color:var(--green);color:var(--green)"
     : ";border-color:var(--red);color:#ff9b93";
-  el.style.transform="translateX(-50%) translateY(0)";
-  el.style.opacity="1";
-  clearTimeout(_tt);
-  _tt=setTimeout(()=>{ el.style.transform="translateX(-50%) translateY(80px)"; el.style.opacity="0"; },3200);
-}
-document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModalDel(); });
-document.getElementById("input-codice").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("input-nome").focus(); });
-document.getElementById("input-nome").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
-</script>
-</body>
-</html>
+  el.
