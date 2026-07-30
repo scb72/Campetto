@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 25/07/2026 22:06 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 14:44 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 25/07/2026 22:06</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 14:44</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -339,6 +339,15 @@
           </table>
         </div>
         <div id="summary-importa" style="margin-top:10px;font-size:.82rem;color:var(--muted)"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h4>📁 File importati su Google Drive</h4>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">I file vengono salvati automaticamente nella cartella <strong>Campetto - Importazioni</strong> del tuo Drive.</p>
+      <button class="btn btn-ghost btn-sm" onclick="caricaFileImportazioni()" style="margin-bottom:12px">🔄 Aggiorna lista</button>
+      <div id="lista-file-drive" style="font-size:.85rem">
+        <span style="color:var(--muted)">Clicca Aggiorna per caricare</span>
       </div>
     </div>
 
@@ -564,6 +573,7 @@ function switchTab(id) {
   if (id === "qrcode") setTimeout(generaQR, 100);
   if (id === "report-prenot") popolaSelectSoci();
   if (id === "log-importa") caricaLogImportazioni();
+  if (id === "importa") caricaFileImportazioni();
 }
 
 // ══════════════════════════════════════════════════════
@@ -980,6 +990,23 @@ function mostraDettaglioLog(idx) {
   document.getElementById("log-detail").style.display="block";
 }
 
+async function caricaFileImportazioni() {
+  try {
+    const res = await api({ action:"getFileImportazioni", codiceSocio:adminUser.codiceSocio });
+    const div = document.getElementById("lista-file-drive");
+    if (!res.ok || !res.files.length) {
+      div.innerHTML = '<span style="color:var(--muted)">Nessun file salvato.</span>';
+      return;
+    }
+    div.innerHTML = res.files.map(f =>
+      `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted);font-size:.78rem;min-width:80px">${f.data}</span>
+        <a href="${f.url}" target="_blank" style="color:var(--accent);text-decoration:none">📄 ${f.nome}</a>
+      </div>`
+    ).join("");
+  } catch(e) {}
+}
+
 // ══════════════════════════════════════════════════════
 //  IMPORTA SOCI
 // ══════════════════════════════════════════════════════
@@ -1010,18 +1037,27 @@ async function importaSoci() {
   // Trova riga intestazione
   let headerRow = -1;
   for (let i=0; i<rows.length; i++) {
-    if (rows[i] && rows[i].some(c => String(c||"").includes("NOMINATIVO"))) {
+    if (rows[i] && rows[i].some(c => String(c||"").toUpperCase().includes("NOMINATIVO") || String(c||"").toUpperCase() === "COGNOME")) {
       headerRow = i; break;
     }
   }
   if (headerRow === -1) { showMsg("err-importa","Intestazione non trovata. Verifica il formato del file."); return; }
 
   const headers = rows[headerRow].map(h => String(h||"").toUpperCase().trim());
-  const iNome     = headers.findIndex(h => h.includes("NOMINATIVO"));
-  const iTessera  = headers.findIndex(h => h.includes("TESSERA") && h.includes("N"));
-  const iScadenza = headers.findIndex(h => h.includes("SCADENZA"));
 
-  if (iNome===-1||iTessera===-1) { showMsg("err-importa","Colonne NOMINATIVO o N° TESSERA non trovate."); return; }
+  // Supporta due formati: NOMINATIVO (vecchio) o COGNOME+NOME separati (nuovo)
+  const iNominativo = headers.findIndex(h => h === "NOMINATIVO");
+  const iCognome    = headers.findIndex(h => h === "COGNOME");
+  const iNome       = headers.findIndex(h => h === "NOME");
+  const iTessera    = headers.findIndex(h => h.includes("NUM") && h.includes("TESSERA") || (h.includes("N°") && h.includes("TESSERA")) || h === "N° TESSERA" || h === "NUM. TESSERA");
+  const iScadenza   = headers.findIndex(h => h.includes("SCADENZA") && h.includes("TESSERA") || h === "SCADENZA");
+  const iTelAb      = headers.findIndex(h => h.includes("ABITAZIONE") && h.includes("TEL"));
+  const iCellulare  = headers.findIndex(h => h.includes("CELLULARE"));
+  const iEmail      = headers.findIndex(h => h === "E-MAIL" || h === "EMAIL");
+  const iQualifica  = headers.findIndex(h => h.includes("QUALIFICA") && h.includes("SOCIALE"));
+
+  const hasNomeSeparato = iCognome !== -1 && iNome !== -1;
+  if (!hasNomeSeparato && iNominativo === -1) { showMsg("err-importa","Colonne nome non trovate."); return; }
 
   // Estrai soci validi
   const oggi = new Date(); oggi.setHours(0,0,0,0);
@@ -1029,28 +1065,43 @@ async function importaSoci() {
 
   for (let i=headerRow+1; i<rows.length; i++) {
     const row = rows[i];
-    if (!row || !row[iNome] || !row[iTessera]) continue;
+    if (!row) continue;
 
-    const nomeCompleto = String(row[iNome]).trim();
-    const tessera      = String(row[iTessera]).trim();
-    if (!tessera || tessera === "null") continue;
+    let cognome, nome;
+    if (hasNomeSeparato) {
+      cognome = String(row[iCognome]||"").trim();
+      nome    = String(row[iNome]||"").trim();
+    } else {
+      const nomeCompleto = String(row[iNominativo]||"").trim();
+      const parti = nomeCompleto.split(" ");
+      cognome = parti[0];
+      nome    = parti.slice(1).join(" ");
+    }
+    if (!cognome) continue;
+
+    const tessera   = iTessera !== -1 ? String(row[iTessera]||"").trim() : "";
+    const telefono  = iCellulare !== -1 && row[iCellulare] ? String(row[iCellulare]).trim()
+                    : iTelAb !== -1 && row[iTelAb] ? String(row[iTelAb]).trim() : "";
+    const email     = iEmail !== -1 ? String(row[iEmail]||"").trim() : "";
+    const qualifica = iQualifica !== -1 ? String(row[iQualifica]||"").trim() : "";
 
     // Scadenza
-    let scadenza = null, attivo = true;
+    let scadenza = null, attivo = false;
     if (iScadenza !== -1 && row[iScadenza]) {
       const sc = row[iScadenza];
-      scadenza = sc instanceof Date ? sc : new Date(sc);
-      scadenza.setHours(0,0,0,0);
-      attivo = scadenza >= oggi;
+      if (sc instanceof Date) {
+        scadenza = sc; scadenza.setHours(0,0,0,0);
+      } else {
+        const scStr = String(sc).trim();
+        // Prova formato dd/mm/yyyy o yyyy-mm-dd
+        const m = scStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) scadenza = new Date(m[3], m[2]-1, m[1]);
+        else   scadenza = new Date(scStr);
+      }
+      if (scadenza && !isNaN(scadenza)) { scadenza.setHours(0,0,0,0); attivo = scadenza >= oggi; }
     }
 
-    // Cognome = prima parola, Nome = resto
-    const parti   = nomeCompleto.split(" ");
-    const cognome = parti[0];
-    const nome    = parti.slice(1).join(" ");
-    const codice  = tessera.slice(-3);  // non usato, assegnato dal backend
-
-    sociDaImportare.push({ nome, cognome, tessera, scadenza, attivo });
+    sociDaImportare.push({ nome, cognome, tessera, telefono, email, qualifica, scadenza, attivo });
   }
 
   if (!sociDaImportare.length) { showMsg("err-importa","Nessun socio valido trovato nel file."); return; }
@@ -1064,10 +1115,13 @@ async function importaSoci() {
       action: "importSoci",
       codiceSocio: adminUser.codiceSocio,
       soci: JSON.stringify(sociDaImportare.map(s => ({
-        nome:     s.nome,
-        cognome:  s.cognome,
-        tessera:  s.tessera,
-        scadenza: s.scadenza ? s.scadenza.toISOString().substring(0,10) : "",
+        nome:      s.nome,
+        cognome:   s.cognome,
+        tessera:   s.tessera,
+        telefono:  s.telefono||"",
+        email:     s.email||"",
+        qualifica: s.qualifica||"",
+        scadenza:  s.scadenza ? s.scadenza.toISOString().substring(0,10) : "",
         attivo:   s.attivo
       })))
     });
@@ -1076,6 +1130,18 @@ async function importaSoci() {
 
     // Mostra report
     renderImportaReport(res.risultati);
+    // Salva file su Google Drive
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise(res => {
+        reader.onload = e => res(e.target.result.split(",")[1]);
+        reader.readAsDataURL(file);
+      });
+      const nomeFile = new Date().toISOString().substring(0,10) + "_" + file.name;
+      await api({ action:"salvaFileGDrive", codiceSocio:adminUser.codiceSocio, nomeFile, contenuto:base64 });
+      caricaFileImportazioni();
+    } catch(e) { /* non bloccare se Drive fallisce */ }
+
     showMsg("ok-importa", `✅ Importazione completata: ${res.aggiunti} aggiunti, ${res.aggiornati} rinnovati, ${res.disattivati} disattivati, ${res.invariati} invariati.`);
     caricaSoci();
   } catch(e) {
