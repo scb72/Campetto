@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 14:44 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 14:59 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -160,7 +160,7 @@
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 14:44</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 14:59</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -198,8 +198,8 @@
       <p class="msg-box msg-err" id="err-soci"></p>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Codice</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Admin</th><th>Stato</th><th>Aggiornato</th><th>Azioni</th></tr></thead>
-          <tbody id="tbl-soci"><tr class="empty-row"><td colspan="9"><span class="spinner"></span>Caricamento...</td></tr></tbody>
+          <thead><tr><th>Codice</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Telefono</th><th>Qualifica</th><th>Admin</th><th>Stato</th><th>Aggiornato</th><th>Azioni</th></tr></thead>
+          <tbody id="tbl-soci"><tr class="empty-row"><td colspan="10"><span class="spinner"></span>Caricamento...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -646,7 +646,7 @@ async function caricaSoci() {
 
 function renderSoci(members) {
   if (!members || members.length === 0) {
-    document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="9">Nessun socio trovato</td></tr>`;
+    document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="10">Nessun socio trovato</td></tr>`;
     return;
   }
   let html = "";
@@ -659,6 +659,7 @@ function renderSoci(members) {
       <td>${m.cognome}</td>
       <td style="color:var(--muted)">${m.email||"—"}</td>
       <td style="color:var(--muted)">${m.telefono||"—"}</td>
+      <td style="color:var(--muted);font-size:.82rem">${m.qualifica||"—"}</td>
       <td>${isAdmin?'<span class="badge badge-amber">Admin</span>':'—'}</td>
       <td><span class="badge ${attivo?"badge-green":"badge-red"}">${attivo?"Attivo":"Disattivo"}</span></td>
       <td style="color:var(--muted);font-size:.78rem">${m.ultimoAgg||"—"}</td>
