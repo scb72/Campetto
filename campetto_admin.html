@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 16:27 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 16:33 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -157,12 +157,13 @@
     </div>
     <p class="msg-box msg-err" id="login-err"></p>
     <button class="btn btn-amber" style="width:100%" onclick="doLogin()">Accedi</button>
+    <p style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:16px">v 30/07/2026 16:33</p>
   </div>
 </div>
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 16:27</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 16:33</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -1513,4 +1514,14 @@ function toast(msg,type=""){
   el.style.cssText+= type==="ok"
     ? ";border-color:var(--green);color:var(--green)"
     : ";border-color:var(--red);color:#ff9b93";
-  el.
+  el.style.transform="translateX(-50%) translateY(0)";
+  el.style.opacity="1";
+  clearTimeout(_tt);
+  _tt=setTimeout(()=>{ el.style.transform="translateX(-50%) translateY(80px)"; el.style.opacity="0"; },3200);
+}
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModalDel(); });
+document.getElementById("input-codice").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("input-nome").focus(); });
+document.getElementById("input-nome").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+</script>
+</body>
+</html>
