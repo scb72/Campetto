@@ -1,4 +1,4 @@
-<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 30/07/2026 16:41 -->
+<!-- Campo Polifunzionale Bonzo | campetto_admin.html | Versione: 04/08/2026 15:58 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -157,13 +157,13 @@
     </div>
     <p class="msg-box msg-err" id="login-err"></p>
     <button class="btn btn-amber" style="width:100%" onclick="doLogin()">Accedi</button>
-    <p style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:16px">v 30/07/2026 16:41</p>
+    <p style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:16px">v 04/08/2026 15:58</p>
   </div>
 </div>
 
 <!-- APP ADMIN -->
 <div id="app">
-  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 30/07/2026 16:41</div>
+  <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;text-align:right">v 04/08/2026 15:58</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('soci')">👥 Soci</button>
     <button class="tab" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
@@ -652,8 +652,14 @@ function renderSoci(members) {
     document.getElementById("tbl-soci").innerHTML = `<tr class="empty-row"><td colspan="10">Nessun socio trovato</td></tr>`;
     return;
   }
+  // Ordina alfabeticamente per cognome poi nome
+  const sorted = [...members].sort((a,b) => {
+    const ca = (a.cognome+a.nome).toUpperCase();
+    const cb = (b.cognome+b.nome).toUpperCase();
+    return ca.localeCompare(cb, "it");
+  });
   let html = "";
-  members.forEach(m => {
+  sorted.forEach(m => {
     const attivo = m.attivo === true || String(m.attivo).toUpperCase() === "TRUE";
     const isAdmin = m.isAdmin === true || String(m.isAdmin).toUpperCase() === "TRUE";
     html += `<tr>
